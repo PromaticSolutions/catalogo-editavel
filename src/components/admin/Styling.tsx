@@ -1,6 +1,8 @@
+// src/components/admin/Styling.tsx - VERSÃO DE DEPURAÇÃO
+
 import { useEffect, useState } from 'react';
 import { Palette, Save } from 'lucide-react';
-import { localDB as supabase, SiteSettings } from '../../lib/localStorage';
+import { supabase, SiteSettings } from '../../lib/supabase'; // Verifique o caminho do import
 
 export default function Styling() {
   const [settings, setSettings] = useState<SiteSettings | null>(null);
@@ -14,7 +16,11 @@ export default function Styling() {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState('');
+  const [saveMessage, setSaveMessage] = useState('Aguardando ação...');
+
+  // --- CÓDIGO DE DEPURAÇÃO ---
+  console.log("URL do Supabase que o código está usando:", supabase.rest.url);
+  // -------------------------
 
   useEffect(() => {
     loadSettings();
@@ -22,12 +28,16 @@ export default function Styling() {
 
   const loadSettings = async () => {
     setLoading(true);
-    const { data } = await supabase
+    setSaveMessage('Carregando configurações...');
+    const { data, error } = await supabase
       .from('site_settings')
       .select('*')
       .maybeSingle();
 
-    if (data) {
+    if (error) {
+      setSaveMessage(`Erro ao carregar: ${error.message}`);
+      console.error("Erro no loadSettings:", error);
+    } else if (data) {
       setSettings(data);
       setFormData({
         company_name: data.company_name,
@@ -37,6 +47,9 @@ export default function Styling() {
         primary_color: data.primary_color,
         secondary_color: data.secondary_color,
       });
+      setSaveMessage('Configurações carregadas. Pronto para editar.');
+    } else {
+      setSaveMessage('Nenhuma configuração encontrada no banco de dados. Clicar em salvar irá criar uma nova.');
     }
     setLoading(false);
   };
@@ -44,50 +57,55 @@ export default function Styling() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    setSaveMessage('');
+    setSaveMessage('Tentando salvar...');
 
-    const updateData = {
-      ...formData,
-      updated_at: new Date().toISOString(),
-    };
+    // --- CÓDIGO DE DEPURAÇÃO ---
+    console.log("Dados a serem salvos:", formData);
+    console.log("O 'settings' atual tem um ID?", settings?.id);
+    // -------------------------
 
-    if (settings) {
-      const { error } = await supabase
+    // Lógica de update ou insert
+    if (settings && settings.id) {
+      // --- TENTATIVA DE UPDATE ---
+      console.log(`Tentando dar UPDATE na linha com ID: ${settings.id}`);
+      const { data, error } = await supabase
         .from('site_settings')
-        .update(updateData)
-        .eq('id', settings.id);
+        .update(formData)
+        .eq('id', settings.id)
+        .select(); // Adicionamos .select() para obter uma resposta
 
-      if (!error) {
-        setSaveMessage('Configurações salvas com sucesso!');
-        loadSettings();
+      if (error) {
+        setSaveMessage(`ERRO NO UPDATE: ${error.message}`);
+        console.error("Erro detalhado do UPDATE:", error);
       } else {
-        setSaveMessage('Erro ao salvar configurações');
+        setSaveMessage('SUCESSO! Configurações atualizadas.');
+        console.log("Resposta do Supabase ao UPDATE:", data);
+        loadSettings(); // Recarrega para confirmar
       }
     } else {
-      const { error } = await supabase
+      // --- TENTATIVA DE INSERT ---
+      console.log("Nenhum ID encontrado, tentando dar INSERT de uma nova linha.");
+      const { data, error } = await supabase
         .from('site_settings')
-        .insert(updateData);
+        .insert(formData)
+        .select(); // Adicionamos .select() para obter uma resposta
 
-      if (!error) {
-        setSaveMessage('Configurações salvas com sucesso!');
-        loadSettings();
+      if (error) {
+        setSaveMessage(`ERRO NO INSERT: ${error.message}`);
+        console.error("Erro detalhado do INSERT:", error);
       } else {
-        setSaveMessage('Erro ao salvar configurações');
+        setSaveMessage('SUCESSO! Configurações criadas.');
+        console.log("Resposta do Supabase ao INSERT:", data);
+        loadSettings(); // Recarrega para confirmar
       }
     }
 
     setSaving(false);
-    setTimeout(() => setSaveMessage(''), 3000);
+    setTimeout(() => setSaveMessage(''), 5000); // Aumentei o tempo para dar pra ler
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
+  // O resto do seu JSX (return) continua o mesmo...
+  // A única mudança é que o 'saveMessage' agora é mais detalhado.
   return (
     <div className="space-y-6">
       <div>
@@ -96,6 +114,7 @@ export default function Styling() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* ... todo o seu formulário ... */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="flex items-center gap-2 mb-4">
             <Palette className="h-5 w-5 text-blue-600" />
@@ -133,7 +152,7 @@ export default function Styling() {
                     src={formData.logo_url}
                     alt="Preview do logo"
                     className="h-16 w-16 object-contain border border-gray-200 rounded"
-                    onError={(e) => {
+                    onError={(e ) => {
                       (e.target as HTMLImageElement).style.display = 'none';
                     }}
                   />
@@ -240,7 +259,7 @@ export default function Styling() {
         {saveMessage && (
           <div
             className={`p-4 rounded-lg ${
-              saveMessage.includes('sucesso')
+              saveMessage.includes('SUCESSO')
                 ? 'bg-green-50 text-green-800 border border-green-200'
                 : 'bg-red-50 text-red-800 border border-red-200'
             }`}
