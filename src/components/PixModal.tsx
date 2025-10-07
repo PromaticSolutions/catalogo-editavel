@@ -1,10 +1,45 @@
-// src/components/PixModal.tsx - VERSÃO FINAL COM PIX-UTILS CORRETO
+// src/components/PixModal.tsx - VERSÃO FINAL SEM DEPENDÊNCIAS EXTERNAS DE PIX
 
 import { useState } from 'react';
 import { X, Copy, Check } from 'lucide-react';
 import QRCode from 'qrcode';
 import { supabase, Product, SiteSettings } from '../lib/supabase';
-import { generatePix } from 'pix-utils'; // A função correta é generatePix
+
+// Função manual para gerar o payload do PIX (BR Code)
+// Esta função é a prova de falhas, não depende de bibliotecas externas.
+const createPixPayload = (pixKey: string, merchantName: string, merchantCity: string, amount: number, txid: string) => {
+  const format = (id: string, value: string) => {
+    const len = value.length.toString().padStart(2, '0');
+    return `${id}${len}${value}`;
+  };
+
+  const payload = [
+    format('00', '01'),
+    format('26', [
+      format('00', 'br.gov.bcb.pix'),
+      format('01', pixKey),
+    ].join('')),
+    format('52', '0000'),
+    format('53', '986'),
+    format('54', amount.toFixed(2)),
+    format('58', 'BR'),
+    format('59', merchantName.substring(0, 25)),
+    format('60', merchantCity.substring(0, 15)),
+    format('62', format('05', txid.substring(0, 25))),
+  ].join('');
+
+  const crc16 = (p: string) => {
+    let crc = 0xFFFF;
+    for (let i = 0; i < p.length; i++) {
+      crc ^= p.charCodeAt(i) << 8;
+      for (let j = 0; j < 8; j++) { crc = (crc & 0x8000) ? (crc << 1) ^ 0x1021 : crc << 1; }
+    }
+    return (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
+  };
+
+  return `${payload}6304${crc16(payload)}`;
+};
+
 
 interface PixModalProps {
   product: Product;
@@ -40,17 +75,22 @@ export default function PixModal({ product, settings, onClose }: PixModalProps) 
 
     // Garante que a chave de telefone esteja no formato correto (+55)
     let pixKey = settings.pix_key;
-    if (/^\d{10,11}$/.test(pixKey.replace(/\D/g, ''))) { // Se parece um telefone sem DDI
-        pixKey = `+55${pixKey.replace(/\D/g, '')}`;
+    if (/^\d{10,13}$/.test(pixKey.replace(/\D/g, ''))) { // Se parece um telefone
+        const cleanNumber = pixKey.replace(/\D/g, '');
+        if (cleanNumber.length <= 11) {
+            pixKey = `+55${cleanNumber}`;
+        } else {
+            pixKey = `+${cleanNumber}`;
+        }
     }
 
-    const pixPayload = generatePix({
-      pixKey: pixKey,
-      merchantName: settings.company_name.substring(0, 25),
-      merchantCity: 'SAO PAULO',
-      amount: totalAmount,
-      txid: `CATALOGO${Date.now()}`.substring(0, 25),
-    });
+    const pixPayload = createPixPayload(
+      pixKey,
+      settings.company_name,
+      'SAO PAULO',
+      totalAmount,
+      `CATALOGO${Date.now()}`
+    );
 
     setPixCode(pixPayload);
     await generatePixQRCode(pixPayload);
