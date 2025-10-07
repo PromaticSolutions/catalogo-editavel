@@ -1,9 +1,10 @@
-// src/components/PixModal.tsx - VERSÃO FINAL, COMPLETA E CORRIGIDA
+// src/components/PixModal.tsx - VERSÃO FINAL COM PIX-UTILS CORRETO
 
 import { useState } from 'react';
-import { X, Copy, Check } from 'lucide-react'; // Apenas ícones que sabemos que funcionam
+import { X, Copy, Check } from 'lucide-react';
 import QRCode from 'qrcode';
 import { supabase, Product, SiteSettings } from '../lib/supabase';
+import { generatePix } from 'pix-utils'; // A função correta é generatePix
 
 interface PixModalProps {
   product: Product;
@@ -23,40 +24,6 @@ export default function PixModal({ product, settings, onClose }: PixModalProps) 
 
   const totalAmount = product.price * quantity;
 
-  // ✅ FUNÇÃO MANUAL CORRIGIDA E DENTRO DO COMPONENTE
-  const createPixPayload = (pixKey: string, merchantName: string, merchantCity: string, amount: number, txid: string) => {
-    const format = (id: string, value: string) => {
-      const len = value.length.toString().padStart(2, '0');
-      return `${id}${len}${value}`;
-    };
-
-    const payload = [
-      format('00', '01'),
-      format('26', [
-        format('00', 'br.gov.bcb.pix'),
-        format('01', pixKey),
-      ].join('')),
-      format('52', '0000'),
-      format('53', '986'),
-      format('54', amount.toFixed(2)),
-      format('58', 'BR'),
-      format('59', merchantName.substring(0, 25)),
-      format('60', merchantCity.substring(0, 15)),
-      format('62', format('05', txid.substring(0, 25))),
-    ].join('');
-
-    const crc16 = (p: string) => {
-      let crc = 0xFFFF;
-      for (let i = 0; i < p.length; i++) {
-        crc ^= p.charCodeAt(i) << 8;
-        for (let j = 0; j < 8; j++) { crc = (crc & 0x8000) ? (crc << 1) ^ 0x1021 : crc << 1; }
-      }
-      return (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
-    };
-
-    return `${payload}6304${crc16(payload)}`;
-  };
-
   const generatePixQRCode = async (pixPayload: string) => {
     try {
       const qrCodeDataUrl = await QRCode.toDataURL(pixPayload, { width: 280, margin: 2 });
@@ -70,14 +37,30 @@ export default function PixModal({ product, settings, onClose }: PixModalProps) 
       return;
     }
     setLoading(true);
-    const pixPayload = createPixPayload(settings.pix_key, settings.company_name, 'SAO PAULO', totalAmount, `CATALOGO${Date.now()}`);
+
+    // Garante que a chave de telefone esteja no formato correto (+55)
+    let pixKey = settings.pix_key;
+    if (/^\d{10,11}$/.test(pixKey.replace(/\D/g, ''))) { // Se parece um telefone sem DDI
+        pixKey = `+55${pixKey.replace(/\D/g, '')}`;
+    }
+
+    const pixPayload = generatePix({
+      pixKey: pixKey,
+      merchantName: settings.company_name.substring(0, 25),
+      merchantCity: 'SAO PAULO',
+      amount: totalAmount,
+      txid: `CATALOGO${Date.now()}`.substring(0, 25),
+    });
+
     setPixCode(pixPayload);
     await generatePixQRCode(pixPayload);
+
     const { error } = await supabase.from('sales').insert({
       product_id: product.id, product_name: product.name, quantity,
       unit_price: product.price, total_amount: totalAmount, customer_name: customerName,
       customer_phone: customerPhone, status: 'pending', pix_code: pixPayload,
     });
+
     if (!error) {
       setOrderCreated(true);
     } else {
@@ -93,7 +76,7 @@ export default function PixModal({ product, settings, onClose }: PixModalProps) 
   };
 
   const whatsappMessage = encodeURIComponent(`Olá! Pedido: ${product.name} (Qtd: ${quantity}, Total: R$ ${totalAmount.toFixed(2)}). Segue o comprovante.`);
-  const whatsappLink = `https://wa.me/5511963730082?text=${whatsappMessage}`; // TROQUE O NÚMERO
+  const whatsappLink = `https://wa.me/${settings.pix_key.replace(/\D/g, '' )}?text=${whatsappMessage}`;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -111,7 +94,7 @@ export default function PixModal({ product, settings, onClose }: PixModalProps) 
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Quantidade</label>
-              <input type="number" min="1" max={product.stock_quantity} value={quantity} onChange={(e ) => setQuantity(Math.max(1, Math.min(product.stock_quantity, parseInt(e.target.value) || 1)))} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+              <input type="number" min="1" max={product.stock_quantity} value={quantity} onChange={(e) => setQuantity(Math.max(1, Math.min(product.stock_quantity, parseInt(e.target.value) || 1)))} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Seu nome (opcional)</label>
