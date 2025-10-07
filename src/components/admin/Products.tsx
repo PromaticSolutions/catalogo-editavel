@@ -1,8 +1,8 @@
-// src/components/admin/Products.tsx - VERSÃO FINAL
+// src/components/admin/Products.tsx - VERSÃO FINAL DE DIAGNÓSTICO
 
 import { useEffect, useState } from 'react';
 import { Plus, Edit, Trash2, Package } from 'lucide-react';
-import { supabase, Product } from '../../lib/supabase'; // Corrigido o import
+import { supabase, Product } from '../../lib/supabase';
 import ProductModal from './ProductModal';
 
 export default function Products() {
@@ -16,6 +16,9 @@ export default function Products() {
   }, []);
 
   const loadProducts = async () => {
+    // --- DIAGNÓSTICO ---
+    console.log("--- FUNÇÃO loadProducts FOI CHAMADA! --- Buscando produtos no Supabase...");
+
     setLoading(true);
     const { data, error } = await supabase
       .from('products')
@@ -25,6 +28,7 @@ export default function Products() {
     if (error) {
       console.error("Erro ao carregar produtos:", error);
     } else if (data) {
+      console.log(`--- ${data.length} produtos encontrados. Atualizando a tela.`);
       setProducts(data);
     }
     setLoading(false);
@@ -44,7 +48,7 @@ export default function Products() {
       .eq('id', id);
 
     if (!error) {
-      loadProducts(); // Recarrega a lista após deletar
+      loadProducts();
     } else {
       console.error("Erro ao deletar produto:", error);
       alert(`Falha ao deletar: ${error.message}`);
@@ -80,7 +84,7 @@ export default function Products() {
         </div>
         <button
           onClick={() => {
-            setEditingProduct(null); // Garante que está criando um novo
+            setEditingProduct(null);
             setShowModal(true);
           }}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
@@ -117,13 +121,7 @@ export default function Products() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="h-10 w-10 flex-shrink-0">
-                          {product.image_url ? (
-                            <img src={product.image_url} alt={product.name} className="h-10 w-10 rounded object-cover" />
-                          ) : (
-                            <div className="h-10 w-10 rounded bg-gray-200 flex items-center justify-center">
-                              <Package className="h-5 w-5 text-gray-400" />
-                            </div>
-                          )}
+                          {product.image_url ? <img src={product.image_url} alt={product.name} className="h-10 w-10 rounded object-cover" /> : <div className="h-10 w-10 rounded bg-gray-200 flex items-center justify-center"><Package className="h-5 w-5 text-gray-400" /></div>}
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">{product.name}</div>
@@ -134,9 +132,7 @@ export default function Products() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatCurrency(product.price)}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.stock_quantity}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${product.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                        {product.is_active ? 'Ativo' : 'Inativo'}
-                      </span>
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${product.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{product.is_active ? 'Ativo' : 'Inativo'}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <button onClick={() => handleEdit(product)} className="text-blue-600 hover:text-blue-900 mr-4"><Edit className="h-5 w-5" /></button>
@@ -154,7 +150,7 @@ export default function Products() {
         <ProductModal
           product={editingProduct}
           onClose={handleModalClose}
-          onSaveSuccess={loadProducts} 
+          onSaveSuccess={loadProducts}
         />
       )}
     </div>
