@@ -1,10 +1,10 @@
-// src/components/PixModal.tsx - VERSÃO FINAL COM A BIBLIOTECA CORRETA
+// src/components/PixModal.tsx - VERSÃO DE DIAGNÓSTICO FINAL
 
 import { useState } from 'react';
 import { X, Copy, Check } from 'lucide-react';
 import QRCode from 'qrcode';
 import { supabase, Product, SiteSettings } from '../lib/supabase';
-import { QrCodePix } from 'qrcode-pix'; // <<< A BIBLIOTECA CORRETA
+import { QrCodePix } from 'qrcode-pix';
 
 interface PixModalProps {
   product: Product;
@@ -28,44 +28,63 @@ export default function PixModal({ product, settings, onClose }: PixModalProps) 
     try {
       const qrCodeDataUrl = await QRCode.toDataURL(pixPayload, { width: 280, margin: 2 });
       setQrCodeUrl(qrCodeDataUrl);
-    } catch (error) { console.error('Erro ao gerar QR Code:', error); }
+    } catch (error) {
+      console.error('ERRO CRÍTICO NO PASSO 2 (GERAR IMAGEM QR CODE):', error);
+      alert(`Erro ao desenhar o QR Code: ${error}`);
+    }
   };
 
   const handleCreateOrder = async () => {
-    if (!settings.pix_key) {
-      alert('Chave PIX não configurada.');
-      return;
-    }
     setLoading(true);
+    try {
+      // --- PASSO 1: GERAR O PAYLOAD DO PIX ---
+      console.log("DIAGNÓSTICO: Iniciando handleCreateOrder. Chave PIX:", settings.pix_key);
+      if (!settings.pix_key) {
+        alert('Chave PIX não configurada.');
+        setLoading(false);
+        return;
+      }
 
-    // --- GERAÇÃO DE PIX COM A BIBLIOTECA CORRETA ---
-    const qrCodePix = QrCodePix({
-      version: '01',
-      key: settings.pix_key, // A biblioteca formata a chave corretamente
-      name: settings.company_name,
-      city: 'SAO PAULO',
-      transactionId: `CATALOGO${Date.now()}`.substring(0, 25),
-      message: `Pedido: ${product.name}`,
-      value: totalAmount,
-    });
+      const qrCodePix = QrCodePix({
+        version: '01',
+        key: settings.pix_key,
+        name: settings.company_name,
+        city: 'SAO PAULO',
+        transactionId: `CATALOGO${Date.now()}`.substring(0, 25),
+        value: totalAmount,
+      });
 
-    const pixPayload = qrCodePix.payload(); // Gera o "Copia e Cola"
-    
-    setPixCode(pixPayload);
-    await generatePixQRCode(pixPayload);
+      const pixPayload = qrCodePix.payload();
+      console.log("DIAGNÓSTICO: Payload PIX gerado com sucesso:", pixPayload);
+      setPixCode(pixPayload);
 
-    const { error } = await supabase.from('sales').insert({
-      product_id: product.id, product_name: product.name, quantity,
-      unit_price: product.price, total_amount: totalAmount, customer_name: customerName,
-      customer_phone: customerPhone, status: 'pending', pix_code: pixPayload,
-    });
+      // --- PASSO 2: GERAR A IMAGEM DO QR CODE ---
+      await generatePixQRCode(pixPayload);
+      console.log("DIAGNÓSTICO: Imagem do QR Code gerada com sucesso.");
 
-    if (!error) {
+      // --- PASSO 3: SALVAR NO BANCO DE DADOS ---
+      const { error } = await supabase.from('sales').insert({
+        product_id: product.id, product_name: product.name, quantity,
+        unit_price: product.price, total_amount: totalAmount, customer_name: customerName,
+        customer_phone: customerPhone, status: 'pending', pix_code: pixPayload,
+      });
+
+      if (error) {
+        throw new Error(`Erro ao salvar no Supabase: ${error.message}`);
+      }
+      console.log("DIAGNÓSTICO: Venda salva no Supabase com sucesso.");
+
       setOrderCreated(true);
-    } else {
-      alert('Erro ao criar pedido. Tente novamente.');
+
+    } catch (error) {
+      // --- O PULO DO GATO: SE QUALQUER COISA ACIMA FALHAR, VAI CAIR AQUI ---
+      console.error("ERRO CRÍTICO NO handleCreateOrder:", error);
+      alert(`Ocorreu um erro inesperado. Verifique o console (F12) para detalhes. Erro: ${error}`);
+    } finally {
+      // --- GARANTE QUE O LOADING SEMPRE TERMINE ---
+      setLoading(false);
+      console.log("DIAGNÓSTICO: Finalizando handleCreateOrder.");
     }
-    setLoading(false);
   };
 
   const copyPixCode = () => {
@@ -77,6 +96,7 @@ export default function PixModal({ product, settings, onClose }: PixModalProps) 
   const whatsappMessage = encodeURIComponent(`Olá! Pedido: ${product.name} (Qtd: ${quantity}, Total: R$ ${totalAmount.toFixed(2)}). Segue o comprovante.`);
   const whatsappLink = `https://wa.me/${settings.pix_key.replace(/\D/g, '' )}?text=${whatsappMessage}`;
 
+  // O JSX continua o mesmo...
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg max-w-md w-full p-6 relative max-h-[90vh] overflow-y-auto">
