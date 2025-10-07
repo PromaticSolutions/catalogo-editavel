@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { X, Copy, Check } from 'lucide-react';
-import { supabase, Product } from '../lib/supabase';
+import QRCode from 'qrcode';
+import { localDB as supabase, Product } from '../lib/localStorage';
+import { pixGenerator } from '../lib/pixGenerator';
 
 interface PixModalProps {
   product: Product;
@@ -13,15 +15,27 @@ export default function PixModal({ product, pixKey, onClose }: PixModalProps) {
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [pixCode, setPixCode] = useState('');
+  const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
   const [orderCreated, setOrderCreated] = useState(false);
 
   const totalAmount = product.price * quantity;
 
-  const generatePixCode = () => {
-    const code = `${pixKey}|${totalAmount.toFixed(2)}|${product.name}`;
-    return btoa(code);
+  const generatePixQRCode = async (pixPayload: string) => {
+    try {
+      const qrCodeDataUrl = await QRCode.toDataURL(pixPayload, {
+        width: 300,
+        margin: 1,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      });
+      setQrCodeUrl(qrCodeDataUrl);
+    } catch (error) {
+      console.error('Erro ao gerar QR Code:', error);
+    }
   };
 
   const handleCreateOrder = async () => {
@@ -31,8 +45,23 @@ export default function PixModal({ product, pixKey, onClose }: PixModalProps) {
     }
 
     setLoading(true);
-    const generatedPixCode = generatePixCode();
 
+    // Gerar código PIX real seguindo o padrão do Banco Central
+    const txid = Date.now().toString().substring(0, 25);
+    
+    const pixPayload = pixGenerator.generate({
+      pixKey: pixKey,
+      description: product.name,
+      merchantName: 'Hanun Tabacaria',
+      merchantCity: 'São Roque - SP',
+      amount: totalAmount,
+      txid: txid
+    });
+
+    // Gerar QR Code
+    await generatePixQRCode(pixPayload);
+
+    // Salvar venda no banco
     const { error } = await supabase.from('sales').insert({
       product_id: product.id,
       product_name: product.name,
@@ -42,11 +71,11 @@ export default function PixModal({ product, pixKey, onClose }: PixModalProps) {
       customer_name: customerName,
       customer_phone: customerPhone,
       status: 'pending',
-      pix_code: generatedPixCode,
+      pix_code: pixPayload,
     });
 
     if (!error) {
-      setPixCode(generatedPixCode);
+      setPixCode(pixPayload);
       setOrderCreated(true);
     } else {
       alert('Erro ao criar pedido. Tente novamente.');
@@ -62,7 +91,7 @@ export default function PixModal({ product, pixKey, onClose }: PixModalProps) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-md w-full p-6 relative">
+      <div className="bg-white rounded-lg max-w-md w-full p-6 relative max-h-[90vh] overflow-y-auto">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
@@ -134,30 +163,38 @@ export default function PixModal({ product, pixKey, onClose }: PixModalProps) {
                 disabled={loading}
                 className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50"
               >
-                {loading ? 'Gerando PIX...' : 'Gerar PIX'}
+                {loading ? 'Gerando PIX...' : 'Gerar QR Code PIX'}
               </button>
             </div>
           </>
         ) : (
           <div className="space-y-4">
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <p className="text-green-800 font-medium">Pedido criado com sucesso!</p>
+              <p className="text-green-800 font-medium">✓ Pedido criado com sucesso!</p>
             </div>
+
+            {qrCodeUrl && (
+              <div className="flex flex-col items-center">
+                <p className="text-sm text-gray-600 mb-2">Escaneie o QR Code para pagar:</p>
+                <img src={qrCodeUrl} alt="QR Code PIX" className="border-2 border-gray-300 rounded-lg" />
+                <p className="text-xs text-gray-500 mt-2">Use o app do seu banco</p>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Código PIX
+                Ou copie o código PIX:
               </label>
               <div className="flex gap-2">
                 <input
                   type="text"
                   value={pixCode}
                   readOnly
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-xs font-mono"
                 />
                 <button
                   onClick={copyPixCode}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 whitespace-nowrap"
                 >
                   {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                   {copied ? 'Copiado!' : 'Copiar'}
@@ -167,16 +204,18 @@ export default function PixModal({ product, pixKey, onClose }: PixModalProps) {
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-sm text-blue-800">
-                <strong>Chave PIX:</strong> {pixKey}
-              </p>
-              <p className="text-sm text-blue-800 mt-2">
                 <strong>Valor:</strong> R$ {totalAmount.toFixed(2)}
+              </p>
+              <p className="text-sm text-blue-800 mt-1">
+                <strong>Produto:</strong> {product.name}
               </p>
             </div>
 
-            <p className="text-sm text-gray-600">
-              Copie o código PIX acima ou use a chave PIX diretamente no seu aplicativo de pagamento.
-            </p>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <p className="text-xs text-yellow-800">
+                ⚠️ Após o pagamento, seu pedido será processado automaticamente.
+              </p>
+            </div>
 
             <button
               onClick={onClose}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { DollarSign, ShoppingBag, Package, TrendingUp } from 'lucide-react';
-import { supabase, Sale } from '../../lib/supabase';
+import { localDB as supabase, Sale } from '../../lib/localStorage';
 
 export default function Dashboard() {
   const [stats, setStats] = useState({

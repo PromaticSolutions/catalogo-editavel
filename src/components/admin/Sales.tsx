@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase, Sale } from '../../lib/supabase';
+import { localDB as supabase, Sale } from '../../lib/localStorage';
 import { Eye } from 'lucide-react';
 import SaleDetailsModal from './SaleDetailsModal';
 

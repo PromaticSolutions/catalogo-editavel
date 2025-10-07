@@ -1,7 +1,8 @@
-import { supabase } from './supabase';
+// src/lib/auth.ts
+import { localDB } from './localStorage';
 
 export const adminLogin = async (username: string, password: string): Promise<boolean> => {
-  const { data, error } = await supabase
+  const { data, error } = await localDB
     .from('admin_users')
     .select('*')
     .eq('username', username)

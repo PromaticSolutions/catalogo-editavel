@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Plus, CreditCard as Edit, Trash2, Package } from 'lucide-react';
-import { supabase, Product } from '../../lib/supabase';
+import { localDB as supabase, Product } from '../../lib/localStorage';
 import ProductModal from './ProductModal';
 
 export default function Products() {

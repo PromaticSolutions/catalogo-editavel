@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import { supabase, Product } from '../../lib/supabase';
+import { localDB as supabase, Product } from '../../lib/localStorage';
 
 interface ProductModalProps {
   product: Product | null;

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, Package } from 'lucide-react';
-import { supabase, Product } from '../../lib/supabase';
+import { localDB as supabase, Product } from '../../lib/localStorage';
 
 export default function Inventory() {
   const [products, setProducts] = useState<Product[]>([]);

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Palette, Save } from 'lucide-react';
-import { supabase, SiteSettings } from '../../lib/supabase';
+import { localDB as supabase, SiteSettings } from '../../lib/localStorage';
 
 export default function Styling() {
   const [settings, setSettings] = useState<SiteSettings | null>(null);

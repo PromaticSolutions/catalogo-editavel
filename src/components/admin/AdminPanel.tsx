@@ -110,6 +110,9 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
 
             <div className="flex items-center gap-4">
               <span className="text-sm text-gray-600">Bem-vindo, Admin</span>
+              <a href="/" className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                Ver Catálogo
+              </a>
             </div>
           </div>
         </header>

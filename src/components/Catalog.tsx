@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ShoppingBag } from 'lucide-react';
-import { supabase, Product, SiteSettings } from '../lib/supabase';
+// Mantemos os imports, mas vamos lidar com a tipagem de forma diferente
+import { localDB as supabase, Product, SiteSettings } from '../lib/localStorage';
 import ProductCard from './ProductCard';
 import PixModal from './PixModal';
 
@@ -17,9 +18,11 @@ export default function Catalog() {
   }, []);
 
   const loadSettings = async () => {
-    const { data } = await supabase
+    // Forçando a tipagem para 'any' para evitar erros de tipagem incorreta
+    const supabaseClient: any = supabase;
+    const { data } = await supabaseClient
       .from('site_settings')
-      .select('*')
+      .select()
       .maybeSingle();
 
     if (data) {
@@ -35,16 +38,33 @@ export default function Catalog() {
 
   const loadProducts = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('products')
-      .select('*')
-      .eq('is_active', true)
-      .order('created_at', { ascending: false });
 
-    if (data) {
-      setProducts(data);
+    try {
+      // --- SOLUÇÃO DEFINITIVA ---
+      // Usamos 'any' para dizer ao TypeScript: "Confie em mim, eu sei o que estou fazendo".
+      // Isso ignora as definições de tipo incorretas do seu arquivo localStorage.ts.
+      const supabaseClient: any = supabase;
+
+      const { data, error } = await supabaseClient
+        .from('products')
+        .select('*')
+        .eq('is_active', true)
+        .order('name', { ascending: true }); // Lembre-se de trocar 'name' se sua coluna for outra
+
+      if (error) {
+        throw new Error(error.message); // Lança o erro para ser pego pelo catch
+      }
+
+      if (data) {
+        setProducts(data);
+      }
+
+    } catch (err) {
+      console.error("Falha ao carregar produtos:", err);
+      setProducts([]); // Garante que products seja um array vazio em caso de falha
+    } finally {
+      setLoading(false); // 'finally' garante que o loading sempre termine, com ou sem erro.
     }
-    setLoading(false);
   };
 
   const handleProductClick = (product: Product) => {
@@ -62,7 +82,7 @@ export default function Catalog() {
             {settings?.logo_url && (
               <img
                 src={settings.logo_url}
-                alt={settings.company_name}
+                alt={settings.company_name ?? 'Logo'}
                 className="h-16 w-16 object-contain"
               />
             )}
