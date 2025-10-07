@@ -1,7 +1,8 @@
+// src/components/Catalog.tsx - VERSÃO FINAL COM REALTIME
+
 import { useEffect, useState } from 'react';
 import { ShoppingBag } from 'lucide-react';
-// Mantemos os imports, mas vamos lidar com a tipagem de forma diferente
-import { localDB as supabase, Product, SiteSettings } from '../lib/localStorage';
+import { supabase, Product, SiteSettings } from '../lib/supabase'; // Verifique o caminho
 import ProductCard from './ProductCard';
 import PixModal from './PixModal';
 
@@ -12,60 +13,70 @@ export default function Catalog() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showPixModal, setShowPixModal] = useState(false);
 
-  useEffect(() => {
-    loadSettings();
-    loadProducts();
-  }, []);
-
-  const loadSettings = async () => {
-    // Forçando a tipagem para 'any' para evitar erros de tipagem incorreta
-    const supabaseClient: any = supabase;
-    const { data } = await supabaseClient
-      .from('site_settings')
-      .select()
-      .maybeSingle();
-
-    if (data) {
-      setSettings(data);
-      applyTheme(data);
+  // Função para aplicar o tema, separada para ser reutilizada
+  const applyTheme = (themeSettings: SiteSettings | null) => {
+    if (themeSettings) {
+      document.documentElement.style.setProperty('--primary-color', themeSettings.primary_color);
+      document.documentElement.style.setProperty('--secondary-color', themeSettings.secondary_color);
     }
   };
 
-  const applyTheme = (settings: SiteSettings) => {
-    document.documentElement.style.setProperty('--primary-color', settings.primary_color);
-    document.documentElement.style.setProperty('--secondary-color', settings.secondary_color);
-  };
+  useEffect(() => {
+    // 1. Carrega os dados iniciais
+    const loadInitialData = async () => {
+      setLoading(true);
+      
+      // Carrega as configurações
+      const { data: settingsData, error: settingsError } = await supabase
+        .from('site_settings')
+        .select('*')
+        .maybeSingle();
+      
+      if (settingsData) {
+        setSettings(settingsData);
+        applyTheme(settingsData);
+      } else if (settingsError) {
+        console.error("Erro ao carregar configurações:", settingsError);
+      }
 
-  const loadProducts = async () => {
-    setLoading(true);
-
-    try {
-      // --- SOLUÇÃO DEFINITIVA ---
-      // Usamos 'any' para dizer ao TypeScript: "Confie em mim, eu sei o que estou fazendo".
-      // Isso ignora as definições de tipo incorretas do seu arquivo localStorage.ts.
-      const supabaseClient: any = supabase;
-
-      const { data, error } = await supabaseClient
+      // Carrega os produtos
+      const { data: productsData, error: productsError } = await supabase
         .from('products')
         .select('*')
         .eq('is_active', true)
-        .order('name', { ascending: true }); // Lembre-se de trocar 'name' se sua coluna for outra
+        .order('name', { ascending: true });
 
-      if (error) {
-        throw new Error(error.message); // Lança o erro para ser pego pelo catch
+      if (productsData) {
+        setProducts(productsData);
+      } else if (productsError) {
+        console.error("Erro ao carregar produtos:", productsError);
       }
 
-      if (data) {
-        setProducts(data);
-      }
+      setLoading(false);
+    };
 
-    } catch (err) {
-      console.error("Falha ao carregar produtos:", err);
-      setProducts([]); // Garante que products seja um array vazio em caso de falha
-    } finally {
-      setLoading(false); // 'finally' garante que o loading sempre termine, com ou sem erro.
-    }
-  };
+    loadInitialData();
+
+    // 2. "Assina" as mudanças em tempo real na tabela site_settings
+    const channel = supabase
+      .channel('site_settings_changes')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'site_settings' },
+        (payload) => {
+          console.log('Mudança recebida nas configurações!', payload.new);
+          const newSettings = payload.new as SiteSettings;
+          setSettings(newSettings); // Atualiza o estado com as novas configurações
+          applyTheme(newSettings); // Aplica o novo tema imediatamente
+        }
+      )
+      .subscribe();
+
+    // 3. Limpa a assinatura quando o componente é desmontado (boa prática)
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const handleProductClick = (product: Product) => {
     if (product.stock_quantity > 0) {
@@ -74,6 +85,7 @@ export default function Catalog() {
     }
   };
 
+  // O resto do seu JSX (return) continua o mesmo...
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <header className="bg-white shadow-md">
