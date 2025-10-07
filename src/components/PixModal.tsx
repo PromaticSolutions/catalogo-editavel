@@ -1,10 +1,9 @@
-// src/components/PixModal.tsx - VERSÃO FINAL COM CORREÇÃO DE ESCOPO
+// src/components/PixModal.tsx - VERSÃO FINAL SEM CONEXÃO DUPLICADA
 
 import { useState } from 'react';
 import { X, Copy, Check } from 'lucide-react';
 import QRCode from 'qrcode';
-import { createClient } from '@supabase/supabase-js'; // << MUDANÇA 1
-import { Product, SiteSettings } from '../lib/supabase'; // Mantém os tipos
+import { supabase, Product, SiteSettings } from '../lib/supabase'; // << IMPORTA A CONEXÃO PRONTA
 import { QrCodePix } from 'qrcode-pix';
 
 interface PixModalProps {
@@ -14,12 +13,7 @@ interface PixModalProps {
 }
 
 export default function PixModal({ product, settings, onClose }: PixModalProps) {
-  // --- INÍCIO DA CORREÇÃO ---
-  // Recria a conexão com o Supabase aqui dentro para garantir que ela exista.
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-  const supabase = createClient(supabaseUrl, supabaseAnonKey);
-  // --- FIM DA CORREÇÃO ---
+  // REMOVEMOS a criação do cliente Supabase daqui.
 
   const [quantity, setQuantity] = useState(1);
   const [customerName, setCustomerName] = useState('');
@@ -64,7 +58,7 @@ export default function PixModal({ product, settings, onClose }: PixModalProps) 
       setPixCode(pixPayload);
       await generatePixQRCode(pixPayload);
 
-      // Agora, a variável 'supabase' tem garantia de existir.
+      // Agora, a variável 'supabase' vem da importação central e não deve ser 'undefined'.
       const { error } = await supabase.from('sales').insert({
         product_id: product.id, product_name: product.name, quantity,
         unit_price: product.price, total_amount: totalAmount, customer_name: customerName,
@@ -94,6 +88,7 @@ export default function PixModal({ product, settings, onClose }: PixModalProps) 
   const whatsappMessage = encodeURIComponent(`Olá! Pedido: ${product.name} (Qtd: ${quantity}, Total: R$ ${totalAmount.toFixed(2)}). Segue o comprovante.`);
   const whatsappLink = `https://wa.me/${settings.pix_key.replace(/\D/g, '' )}?text=${whatsappMessage}`;
 
+  // O JSX continua o mesmo...
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg max-w-md w-full p-6 relative max-h-[90vh] overflow-y-auto">
