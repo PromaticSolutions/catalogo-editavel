@@ -1,10 +1,27 @@
-// src/components/Catalog.tsx - VERSÃO FINAL COM REALTIME PARA TUDO
+// src/components/Catalog.tsx - SEU CÓDIGO + MODO DE DIAGNÓSTICO
 
 import { useEffect, useState } from 'react';
 import { ShoppingBag } from 'lucide-react';
 import { supabase, Product, SiteSettings } from '../lib/supabase';
 import ProductCard from './ProductCard';
 import PixModal from './PixModal';
+
+// --- INÍCIO DO CÓDIGO DE DIAGNÓSTICO ---
+const DiagnosticoVariaveis = () => {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return (
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, background: 'red', color: 'white', padding: '10px', zIndex: 9999, textAlign: 'center', fontSize: '14px', fontFamily: 'monospace' }}>
+        <strong>ERRO CRÍTICO:</strong> Variáveis de ambiente (VITE_SUPABASE_URL ou VITE_SUPABASE_ANON_KEY) não encontradas! Verifique a configuração na Vercel.
+      </div>
+    );
+  }
+  return null; // Se tudo estiver ok, não mostra nada.
+};
+// --- FIM DO CÓDIGO DE DIAGNÓSTICO ---
+
 
 export default function Catalog() {
   const [settings, setSettings] = useState<SiteSettings | null>(null);
@@ -49,41 +66,28 @@ export default function Catalog() {
         console.error("Erro ao carregar configurações:", settingsError);
       }
 
-      await loadProducts(); // Usa a função separada para carregar produtos
+      await loadProducts();
       setLoading(false);
     };
 
     loadInitialData();
 
-    // Assinatura para MUDANÇAS NAS CONFIGURAÇÕES
     const settingsChannel = supabase
       .channel('site_settings_changes')
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'site_settings' },
-        (payload) => {
-          console.log('Mudança recebida nas configurações!', payload.new);
-          const newSettings = payload.new as SiteSettings;
-          setSettings(newSettings);
-          applyTheme(newSettings);
-        }
-      )
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'site_settings' }, (payload) => {
+        const newSettings = payload.new as SiteSettings;
+        setSettings(newSettings);
+        applyTheme(newSettings);
+      })
       .subscribe();
 
-    // Assinatura para MUDANÇAS NOS PRODUTOS
     const productsChannel = supabase
       .channel('products_changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'products' },
-        (payload) => {
-          console.log('Mudança recebida nos produtos!', payload);
-          loadProducts(); // Simplesmente recarrega a lista de produtos
-        }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+        loadProducts();
+      })
       .subscribe();
 
-    // Limpa AMBAS as assinaturas
     return () => {
       supabase.removeChannel(settingsChannel);
       supabase.removeChannel(productsChannel);
@@ -99,6 +103,8 @@ export default function Catalog() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      <DiagnosticoVariaveis /> {/* << ADICIONADO AQUI */}
+      
       <header className="bg-white shadow-md">
         <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex items-center gap-4">
@@ -144,7 +150,6 @@ export default function Catalog() {
         )}
       </main>
 
-      {/* --- CHAMADA DO PIXMODAL CORRIGIDA --- */}
       {showPixModal && selectedProduct && settings && (
         <PixModal
           product={selectedProduct}
