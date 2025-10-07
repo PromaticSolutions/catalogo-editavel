@@ -1,13 +1,15 @@
+// src/components/admin/Login.tsx - VERSÃO CORRIGIDA
+
 import { useState } from 'react';
 import { Lock } from 'lucide-react';
-import { adminLogin } from '../../lib/auth';
+import { supabase } from '../../lib/supabase'; // Verifique se o import está correto
 
 interface LoginProps {
   onLoginSuccess: () => void;
 }
 
 export default function Login({ onLoginSuccess }: LoginProps) {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState(''); // Mudamos para email
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -17,15 +19,19 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     setError('');
     setLoading(true);
 
-    const success = await adminLogin(username, password);
+    // Usando o método de login oficial do Supabase
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email,
+      password: password,
+    });
 
-    if (success) {
-      onLoginSuccess();
+    if (error) {
+      setError('Email ou senha incorretos');
+      setLoading(false);
     } else {
-      setError('Usuário ou senha incorretos');
+      // Sucesso! A biblioteca do Supabase agora está autenticada.
+      onLoginSuccess();
     }
-
-    setLoading(false);
   };
 
   return (
@@ -36,26 +42,23 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             <Lock className="h-8 w-8 text-white" />
           </div>
         </div>
-
         <h2 className="text-2xl font-bold text-center text-gray-900 mb-6">
           Painel Administrativo
         </h2>
-
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Usuário
+              Email
             </label>
             <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              type="email" // Mudamos para email
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Digite seu usuário"
+              placeholder="Digite seu email"
               required
             />
           </div>
-
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Senha
@@ -69,13 +72,11 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               required
             />
           </div>
-
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-sm">
               {error}
             </div>
           )}
-
           <button
             type="submit"
             disabled={loading}
@@ -84,11 +85,6 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             {loading ? 'Entrando...' : 'Entrar'}
           </button>
         </form>
-
-        <div className="mt-6 text-center text-sm text-gray-500">
-          <p>Usuário padrão: admin</p>
-          <p>Senha padrão: admin123_dev</p>
-        </div>
       </div>
     </div>
   );
