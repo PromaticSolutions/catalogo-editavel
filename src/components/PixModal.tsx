@@ -1,9 +1,10 @@
-// src/components/PixModal.tsx - VERSÃO DE DIAGNÓSTICO FINAL
+// src/components/PixModal.tsx - VERSÃO FINAL COM CORREÇÃO DE ESCOPO
 
 import { useState } from 'react';
 import { X, Copy, Check } from 'lucide-react';
 import QRCode from 'qrcode';
-import { supabase, Product, SiteSettings } from '../lib/supabase';
+import { createClient } from '@supabase/supabase-js'; // << MUDANÇA 1
+import { Product, SiteSettings } from '../lib/supabase'; // Mantém os tipos
 import { QrCodePix } from 'qrcode-pix';
 
 interface PixModalProps {
@@ -13,6 +14,13 @@ interface PixModalProps {
 }
 
 export default function PixModal({ product, settings, onClose }: PixModalProps) {
+  // --- INÍCIO DA CORREÇÃO ---
+  // Recria a conexão com o Supabase aqui dentro para garantir que ela exista.
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  const supabase = createClient(supabaseUrl, supabaseAnonKey);
+  // --- FIM DA CORREÇÃO ---
+
   const [quantity, setQuantity] = useState(1);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -29,7 +37,7 @@ export default function PixModal({ product, settings, onClose }: PixModalProps) 
       const qrCodeDataUrl = await QRCode.toDataURL(pixPayload, { width: 280, margin: 2 });
       setQrCodeUrl(qrCodeDataUrl);
     } catch (error) {
-      console.error('ERRO CRÍTICO NO PASSO 2 (GERAR IMAGEM QR CODE):', error);
+      console.error('ERRO AO GERAR IMAGEM QR CODE:', error);
       alert(`Erro ao desenhar o QR Code: ${error}`);
     }
   };
@@ -37,8 +45,6 @@ export default function PixModal({ product, settings, onClose }: PixModalProps) 
   const handleCreateOrder = async () => {
     setLoading(true);
     try {
-      // --- PASSO 1: GERAR O PAYLOAD DO PIX ---
-      console.log("DIAGNÓSTICO: Iniciando handleCreateOrder. Chave PIX:", settings.pix_key);
       if (!settings.pix_key) {
         alert('Chave PIX não configurada.');
         setLoading(false);
@@ -55,14 +61,10 @@ export default function PixModal({ product, settings, onClose }: PixModalProps) 
       });
 
       const pixPayload = qrCodePix.payload();
-      console.log("DIAGNÓSTICO: Payload PIX gerado com sucesso:", pixPayload);
       setPixCode(pixPayload);
-
-      // --- PASSO 2: GERAR A IMAGEM DO QR CODE ---
       await generatePixQRCode(pixPayload);
-      console.log("DIAGNÓSTICO: Imagem do QR Code gerada com sucesso.");
 
-      // --- PASSO 3: SALVAR NO BANCO DE DADOS ---
+      // Agora, a variável 'supabase' tem garantia de existir.
       const { error } = await supabase.from('sales').insert({
         product_id: product.id, product_name: product.name, quantity,
         unit_price: product.price, total_amount: totalAmount, customer_name: customerName,
@@ -72,18 +74,14 @@ export default function PixModal({ product, settings, onClose }: PixModalProps) 
       if (error) {
         throw new Error(`Erro ao salvar no Supabase: ${error.message}`);
       }
-      console.log("DIAGNÓSTICO: Venda salva no Supabase com sucesso.");
 
       setOrderCreated(true);
 
     } catch (error) {
-      // --- O PULO DO GATO: SE QUALQUER COISA ACIMA FALHAR, VAI CAIR AQUI ---
       console.error("ERRO CRÍTICO NO handleCreateOrder:", error);
       alert(`Ocorreu um erro inesperado. Verifique o console (F12) para detalhes. Erro: ${error}`);
     } finally {
-      // --- GARANTE QUE O LOADING SEMPRE TERMINE ---
       setLoading(false);
-      console.log("DIAGNÓSTICO: Finalizando handleCreateOrder.");
     }
   };
 
@@ -96,7 +94,6 @@ export default function PixModal({ product, settings, onClose }: PixModalProps) 
   const whatsappMessage = encodeURIComponent(`Olá! Pedido: ${product.name} (Qtd: ${quantity}, Total: R$ ${totalAmount.toFixed(2)}). Segue o comprovante.`);
   const whatsappLink = `https://wa.me/${settings.pix_key.replace(/\D/g, '' )}?text=${whatsappMessage}`;
 
-  // O JSX continua o mesmo...
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg max-w-md w-full p-6 relative max-h-[90vh] overflow-y-auto">
