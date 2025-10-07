@@ -4,6 +4,10 @@ import { useState } from 'react';
 import { Lock } from 'lucide-react';
 import { supabase } from '../../lib/supabase'; // Verifique se o import está correto
 
+console.log("VITE_SUPABASE_URL recebida:", import.meta.env.VITE_SUPABASE_URL);
+console.log("VITE_SUPABASE_ANON_KEY recebida:", import.meta.env.VITE_SUPABASE_ANON_KEY ? "Sim, a chave existe" : "NÃO, a chave está vazia!");
+
+
 interface LoginProps {
   onLoginSuccess: () => void;
 }
