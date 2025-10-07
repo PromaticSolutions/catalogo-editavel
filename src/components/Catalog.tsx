@@ -1,8 +1,8 @@
-// src/components/Catalog.tsx - VERSÃO FINAL COM REALTIME
+// src/components/Catalog.tsx - VERSÃO FINAL COM REALTIME PARA TUDO
 
 import { useEffect, useState } from 'react';
 import { ShoppingBag } from 'lucide-react';
-import { supabase, Product, SiteSettings } from '../lib/supabase'; // Verifique o caminho
+import { supabase, Product, SiteSettings } from '../lib/supabase';
 import ProductCard from './ProductCard';
 import PixModal from './PixModal';
 
@@ -13,7 +13,6 @@ export default function Catalog() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showPixModal, setShowPixModal] = useState(false);
 
-  // Função para aplicar o tema, separada para ser reutilizada
   const applyTheme = (themeSettings: SiteSettings | null) => {
     if (themeSettings) {
       document.documentElement.style.setProperty('--primary-color', themeSettings.primary_color);
@@ -21,12 +20,23 @@ export default function Catalog() {
     }
   };
 
+  const loadProducts = async () => {
+    const { data: productsData, error: productsError } = await supabase
+      .from('products')
+      .select('*')
+      .eq('is_active', true)
+      .order('name', { ascending: true });
+
+    if (productsData) {
+      setProducts(productsData);
+    } else if (productsError) {
+      console.error("Erro ao carregar produtos:", productsError);
+    }
+  };
+
   useEffect(() => {
-    // 1. Carrega os dados iniciais
     const loadInitialData = async () => {
       setLoading(true);
-      
-      // Carrega as configurações
       const { data: settingsData, error: settingsError } = await supabase
         .from('site_settings')
         .select('*')
@@ -39,26 +49,14 @@ export default function Catalog() {
         console.error("Erro ao carregar configurações:", settingsError);
       }
 
-      // Carrega os produtos
-      const { data: productsData, error: productsError } = await supabase
-        .from('products')
-        .select('*')
-        .eq('is_active', true)
-        .order('name', { ascending: true });
-
-      if (productsData) {
-        setProducts(productsData);
-      } else if (productsError) {
-        console.error("Erro ao carregar produtos:", productsError);
-      }
-
+      await loadProducts(); // Usa a função separada para carregar produtos
       setLoading(false);
     };
 
     loadInitialData();
 
-    // 2. "Assina" as mudanças em tempo real na tabela site_settings
-    const channel = supabase
+    // Assinatura para MUDANÇAS NAS CONFIGURAÇÕES
+    const settingsChannel = supabase
       .channel('site_settings_changes')
       .on(
         'postgres_changes',
@@ -66,15 +64,29 @@ export default function Catalog() {
         (payload) => {
           console.log('Mudança recebida nas configurações!', payload.new);
           const newSettings = payload.new as SiteSettings;
-          setSettings(newSettings); // Atualiza o estado com as novas configurações
-          applyTheme(newSettings); // Aplica o novo tema imediatamente
+          setSettings(newSettings);
+          applyTheme(newSettings);
         }
       )
       .subscribe();
 
-    // 3. Limpa a assinatura quando o componente é desmontado (boa prática)
+    // Assinatura para MUDANÇAS NOS PRODUTOS
+    const productsChannel = supabase
+      .channel('products_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'products' },
+        (payload) => {
+          console.log('Mudança recebida nos produtos!', payload);
+          loadProducts(); // Simplesmente recarrega a lista de produtos
+        }
+      )
+      .subscribe();
+
+    // Limpa AMBAS as assinaturas
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(settingsChannel);
+      supabase.removeChannel(productsChannel);
     };
   }, []);
 
@@ -85,7 +97,6 @@ export default function Catalog() {
     }
   };
 
-  // O resto do seu JSX (return) continua o mesmo...
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <header className="bg-white shadow-md">
@@ -133,10 +144,11 @@ export default function Catalog() {
         )}
       </main>
 
+      {/* --- CHAMADA DO PIXMODAL CORRIGIDA --- */}
       {showPixModal && selectedProduct && settings && (
         <PixModal
           product={selectedProduct}
-          pixKey={settings.pix_key}
+          settings={settings} 
           onClose={() => {
             setShowPixModal(false);
             setSelectedProduct(null);
