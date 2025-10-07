@@ -1,19 +1,19 @@
-// src/components/admin/Login.tsx - VERSÃO CORRIGIDA
+// src/components/admin/Login.tsx - VERSÃO CORRIGIDA PARA DIAGNÓSTICO
+
+// ADICIONE ESTAS DUAS LINHAS DE DIAGNÓSTICO NO TOPO
+console.log("DIAGNÓSTICO -> URL Recebida:", import.meta.env.VITE_SUPABASE_URL);
+console.log("DIAGNÓSTICO -> Chave Recebida:", import.meta.env.VITE_SUPABASE_ANON_KEY);
 
 import { useState } from 'react';
 import { Lock } from 'lucide-react';
-import { supabase } from '../../lib/supabase'; // Verifique se o import está correto
-
-console.log("VITE_SUPABASE_URL recebida:", import.meta.env.VITE_SUPABASE_URL);
-console.log("VITE_SUPABASE_ANON_KEY recebida:", import.meta.env.VITE_SUPABASE_ANON_KEY ? "Sim, a chave existe" : "NÃO, a chave está vazia!");
-
+import { supabase } from '../../lib/supabase';
 
 interface LoginProps {
   onLoginSuccess: () => void;
 }
 
 export default function Login({ onLoginSuccess }: LoginProps) {
-  const [email, setEmail] = useState(''); // Mudamos para email
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -23,7 +23,6 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     setError('');
     setLoading(true);
 
-    // Usando o método de login oficial do Supabase
     const { error } = await supabase.auth.signInWithPassword({
       email: email,
       password: password,
@@ -32,8 +31,8 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     if (error) {
       setError('Email ou senha incorretos');
       setLoading(false);
+      console.error("Erro retornado pelo Supabase no login:", error); // Log de erro adicional
     } else {
-      // Sucesso! A biblioteca do Supabase agora está autenticada.
       onLoginSuccess();
     }
   };
@@ -55,7 +54,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               Email
             </label>
             <input
-              type="email" // Mudamos para email
+              type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
