@@ -1,6 +1,8 @@
+// src/components/admin/ProductModal.tsx - VERSÃO COMPLETA COM DIAGNÓSTICO
+
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import { localDB as supabase, Product } from '../../lib/localStorage';
+import { supabase, Product } from '../../lib/supabase'; // Corrigido o caminho do import
 
 interface ProductModalProps {
   product: Product | null;
@@ -17,6 +19,7 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
     is_active: true,
   });
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(''); // << NOVO ESTADO PARA ERROS
 
   useEffect(() => {
     if (product) {
@@ -34,32 +37,46 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setErrorMessage(''); // Limpa o erro anterior
 
-    const data = {
+    const dataToSave = {
       name: formData.name,
       description: formData.description,
-      price: parseFloat(formData.price),
+      price: parseFloat(formData.price) || 0,
       image_url: formData.image_url,
-      stock_quantity: parseInt(formData.stock_quantity),
+      stock_quantity: parseInt(formData.stock_quantity) || 0,
       is_active: formData.is_active,
-      updated_at: new Date().toISOString(),
     };
 
+    // --- CÓDIGO DE DEPURAÇÃO ---
+    console.log("Tentando salvar dados do produto:", dataToSave);
+    // -------------------------
+
     if (product) {
+      // --- LÓGICA DE UPDATE ---
       const { error } = await supabase
         .from('products')
-        .update(data)
+        .update(dataToSave)
         .eq('id', product.id);
 
-      if (!error) {
+      if (error) {
+        console.error("ERRO NO UPDATE DO PRODUTO:", error);
+        setErrorMessage(`Falha ao atualizar: ${error.message}`);
+      } else {
+        console.log("Produto atualizado com sucesso!");
         onClose();
       }
     } else {
+      // --- LÓGICA DE INSERT ---
       const { error } = await supabase
         .from('products')
-        .insert(data);
+        .insert(dataToSave);
 
-      if (!error) {
+      if (error) {
+        console.error("ERRO NO INSERT DO PRODUTO:", error);
+        setErrorMessage(`Falha ao criar: ${error.message}`);
+      } else {
+        console.log("Produto criado com sucesso!");
         onClose();
       }
     }
@@ -156,13 +173,20 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
               type="checkbox"
               id="is_active"
               checked={formData.is_active}
-              onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+              onChange={(e ) => setFormData({ ...formData, is_active: e.target.checked })}
               className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
             />
             <label htmlFor="is_active" className="ml-2 block text-sm text-gray-700">
               Produto ativo (visível no catálogo)
             </label>
           </div>
+
+          {/* --- MOSTRADOR DE ERRO --- */}
+          {errorMessage && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+              <strong>Erro:</strong> {errorMessage}
+            </div>
+          )}
 
           <div className="flex gap-3 pt-4">
             <button
