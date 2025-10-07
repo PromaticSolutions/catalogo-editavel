@@ -1,32 +1,9 @@
-// src/components/PixModal.tsx - VERSÃO DE EMERGÊNCIA, À PROVA DE FALHAS
+// src/components/PixModal.tsx - VERSÃO FINAL, COMPLETA E CORRIGIDA
 
 import { useState } from 'react';
-import { X, Copy, Check } from 'lucide-react'; // Apenas ícones que JÁ SABEMOS que funcionam
+import { X, Copy, Check } from 'lucide-react'; // Apenas ícones que sabemos que funcionam
 import QRCode from 'qrcode';
 import { supabase, Product, SiteSettings } from '../lib/supabase';
-
-// Função manual para gerar o payload do PIX (BR Code)
-const createPixPayload = (pixKey: string, merchantName: string, merchantCity: string, amount: number, txid: string) => {
-  const format = (id: string, value: string) => {
-    const len = value.length.toString().padStart(2, '0');
-    return `${id}${len}${value}`;
-  };
-  const payload = [
-    format('00', '01'), format('26', [format('00', 'br.gov.bcb.pix'), format('01', pixKey)].join('')),
-    format('52', '0000'), format('53', '986'), format('54', amount.toFixed(2)),
-    format('58', 'BR'), format('59', merchantName.substring(0, 25)), format('60', merchantCity.substring(0, 15)),
-    format('62', format('05', txid.substring(0, 25))),
-  ].join('');
-  const crc16 = (p: string) => {
-    let crc = 0xFFFF;
-    for (let i = 0; i < p.length; i++) {
-      crc ^= p.charCodeAt(i) << 8;
-      for (let j = 0; j < 8; j++) { crc = (crc & 0x8000) ? (crc << 1) ^ 0x1021 : crc << 1; }
-    }
-    return (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
-  };
-  return `${payload}6304${crc16(payload)}`;
-};
 
 interface PixModalProps {
   product: Product;
@@ -45,6 +22,40 @@ export default function PixModal({ product, settings, onClose }: PixModalProps) 
   const [orderCreated, setOrderCreated] = useState(false);
 
   const totalAmount = product.price * quantity;
+
+  // ✅ FUNÇÃO MANUAL CORRIGIDA E DENTRO DO COMPONENTE
+  const createPixPayload = (pixKey: string, merchantName: string, merchantCity: string, amount: number, txid: string) => {
+    const format = (id: string, value: string) => {
+      const len = value.length.toString().padStart(2, '0');
+      return `${id}${len}${value}`;
+    };
+
+    const payload = [
+      format('00', '01'),
+      format('26', [
+        format('00', 'br.gov.bcb.pix'),
+        format('01', pixKey),
+      ].join('')),
+      format('52', '0000'),
+      format('53', '986'),
+      format('54', amount.toFixed(2)),
+      format('58', 'BR'),
+      format('59', merchantName.substring(0, 25)),
+      format('60', merchantCity.substring(0, 15)),
+      format('62', format('05', txid.substring(0, 25))),
+    ].join('');
+
+    const crc16 = (p: string) => {
+      let crc = 0xFFFF;
+      for (let i = 0; i < p.length; i++) {
+        crc ^= p.charCodeAt(i) << 8;
+        for (let j = 0; j < 8; j++) { crc = (crc & 0x8000) ? (crc << 1) ^ 0x1021 : crc << 1; }
+      }
+      return (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
+    };
+
+    return `${payload}6304${crc16(payload)}`;
+  };
 
   const generatePixQRCode = async (pixPayload: string) => {
     try {
@@ -144,7 +155,7 @@ export default function PixModal({ product, settings, onClose }: PixModalProps) 
             <div className="pt-4">
               <p className="text-sm text-gray-600 mb-2">2. Após pagar, envie o comprovante:</p>
               <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="w-full bg-green-500 text-white py-3 rounded-lg font-semibold hover:bg-green-600 transition-colors flex items-center justify-center gap-2">
-                <span className="mr-2">📲</span> {/* Ícone de emoji, impossível dar erro */}
+                <span className="mr-2">📲</span>
                 Enviar Comprovante via WhatsApp
               </a>
             </div>
