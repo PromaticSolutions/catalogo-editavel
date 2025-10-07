@@ -1,45 +1,9 @@
-// src/components/PixModal.tsx - VERSÃO FINAL SEM DEPENDÊNCIAS EXTERNAS DE PIX
+// src/components/PixModal.tsx - VERSÃO FINAL E SIMPLIFICADA
 
 import { useState } from 'react';
 import { X, Copy, Check } from 'lucide-react';
 import QRCode from 'qrcode';
 import { supabase, Product, SiteSettings } from '../lib/supabase';
-
-// Função manual para gerar o payload do PIX (BR Code)
-// Esta função é a prova de falhas, não depende de bibliotecas externas.
-const createPixPayload = (pixKey: string, merchantName: string, merchantCity: string, amount: number, txid: string) => {
-  const format = (id: string, value: string) => {
-    const len = value.length.toString().padStart(2, '0');
-    return `${id}${len}${value}`;
-  };
-
-  const payload = [
-    format('00', '01'),
-    format('26', [
-      format('00', 'br.gov.bcb.pix'),
-      format('01', pixKey),
-    ].join('')),
-    format('52', '0000'),
-    format('53', '986'),
-    format('54', amount.toFixed(2)),
-    format('58', 'BR'),
-    format('59', merchantName.substring(0, 25)),
-    format('60', merchantCity.substring(0, 15)),
-    format('62', format('05', txid.substring(0, 25))),
-  ].join('');
-
-  const crc16 = (p: string) => {
-    let crc = 0xFFFF;
-    for (let i = 0; i < p.length; i++) {
-      crc ^= p.charCodeAt(i) << 8;
-      for (let j = 0; j < 8; j++) { crc = (crc & 0x8000) ? (crc << 1) ^ 0x1021 : crc << 1; }
-    }
-    return (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
-  };
-
-  return `${payload}6304${crc16(payload)}`;
-};
-
 
 interface PixModalProps {
   product: Product;
@@ -73,32 +37,17 @@ export default function PixModal({ product, settings, onClose }: PixModalProps) 
     }
     setLoading(true);
 
-    // Garante que a chave de telefone esteja no formato correto (+55)
-    let pixKey = settings.pix_key;
-    if (/^\d{10,13}$/.test(pixKey.replace(/\D/g, ''))) { // Se parece um telefone
-        const cleanNumber = pixKey.replace(/\D/g, '');
-        if (cleanNumber.length <= 11) {
-            pixKey = `+55${cleanNumber}`;
-        } else {
-            pixKey = `+${cleanNumber}`;
-        }
-    }
-
-    const pixPayload = createPixPayload(
-      pixKey,
-      settings.company_name,
-      'SAO PAULO',
-      totalAmount,
-      `CATALOGO${Date.now()}`
-    );
-
+    // --- A SOLUÇÃO MAIS SIMPLES ---
+    // O QR Code vai conter apenas o texto da sua chave PIX.
+    const pixPayload = settings.pix_key;
+    
     setPixCode(pixPayload);
     await generatePixQRCode(pixPayload);
 
     const { error } = await supabase.from('sales').insert({
       product_id: product.id, product_name: product.name, quantity,
       unit_price: product.price, total_amount: totalAmount, customer_name: customerName,
-      customer_phone: customerPhone, status: 'pending', pix_code: pixPayload,
+      customer_phone: customerPhone, status: 'pending', pix_code: "QR Code Simples", // Apenas um marcador
     });
 
     if (!error) {
@@ -166,9 +115,9 @@ export default function PixModal({ product, settings, onClose }: PixModalProps) 
               </div>
             )}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Ou copie o código (PIX Copia e Cola):</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Ou copie a chave PIX:</label>
               <div className="flex gap-2">
-                <input type="text" value={pixCode} readOnly className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-xs font-mono" />
+                <input type="text" value={pixCode} readOnly className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm" />
                 <button onClick={copyPixCode} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 whitespace-nowrap">
                   {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                   {copied ? 'Copiado!' : 'Copiar'}
