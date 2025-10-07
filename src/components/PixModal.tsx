@@ -1,9 +1,10 @@
-// src/components/PixModal.tsx - VERSÃO FINAL E SIMPLIFICADA
+// src/components/PixModal.tsx - VERSÃO FINAL COM A BIBLIOTECA CORRETA
 
 import { useState } from 'react';
 import { X, Copy, Check } from 'lucide-react';
 import QRCode from 'qrcode';
 import { supabase, Product, SiteSettings } from '../lib/supabase';
+import { QrCodePix } from 'qrcode-pix'; // <<< A BIBLIOTECA CORRETA
 
 interface PixModalProps {
   product: Product;
@@ -37,9 +38,18 @@ export default function PixModal({ product, settings, onClose }: PixModalProps) 
     }
     setLoading(true);
 
-    // --- A SOLUÇÃO MAIS SIMPLES ---
-    // O QR Code vai conter apenas o texto da sua chave PIX.
-    const pixPayload = settings.pix_key;
+    // --- GERAÇÃO DE PIX COM A BIBLIOTECA CORRETA ---
+    const qrCodePix = QrCodePix({
+      version: '01',
+      key: settings.pix_key, // A biblioteca formata a chave corretamente
+      name: settings.company_name,
+      city: 'SAO PAULO',
+      transactionId: `CATALOGO${Date.now()}`.substring(0, 25),
+      message: `Pedido: ${product.name}`,
+      value: totalAmount,
+    });
+
+    const pixPayload = qrCodePix.payload(); // Gera o "Copia e Cola"
     
     setPixCode(pixPayload);
     await generatePixQRCode(pixPayload);
@@ -47,7 +57,7 @@ export default function PixModal({ product, settings, onClose }: PixModalProps) 
     const { error } = await supabase.from('sales').insert({
       product_id: product.id, product_name: product.name, quantity,
       unit_price: product.price, total_amount: totalAmount, customer_name: customerName,
-      customer_phone: customerPhone, status: 'pending', pix_code: "QR Code Simples", // Apenas um marcador
+      customer_phone: customerPhone, status: 'pending', pix_code: pixPayload,
     });
 
     if (!error) {
@@ -115,9 +125,9 @@ export default function PixModal({ product, settings, onClose }: PixModalProps) 
               </div>
             )}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Ou copie a chave PIX:</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Ou copie o código (PIX Copia e Cola):</label>
               <div className="flex gap-2">
-                <input type="text" value={pixCode} readOnly className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm" />
+                <input type="text" value={pixCode} readOnly className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-xs font-mono" />
                 <button onClick={copyPixCode} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 whitespace-nowrap">
                   {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                   {copied ? 'Copiado!' : 'Copiar'}
