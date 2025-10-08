@@ -38,11 +38,8 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
     e.preventDefault();
     setIsSubmitting(true);
 
-    // CORREÇÃO: Converte categoryId corretamente
-    const parsedCategoryId = categoryId ? parseInt(categoryId, 10) : null;
-    
-    // Validação adicional
-    if (!parsedCategoryId || isNaN(parsedCategoryId)) {
+    // SUA VALIDAÇÃO GENIAL - VAMOS APENAS AJUSTÁ-LA
+    if (!categoryId) { // MUDANÇA #1: Verificar a string 'categoryId' diretamente
       toast.error('Por favor, selecione uma categoria válida');
       setIsSubmitting(false);
       return;
@@ -52,7 +49,7 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
       name,
       description,
       price: parseFloat(price),
-      category_id: parsedCategoryId,
+      category_id: parseInt(categoryId, 10), // Agora isso é seguro
       image_url: imageUrl,
     };
 
@@ -103,7 +100,8 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
                   className="w-full px-3 py-2 border rounded-lg"
                   required
                 >
-                  <option value="">Selecione uma categoria</option>
+                  {/* MUDANÇA #2: A opção vazia agora é 'disabled' */}
+                  <option value="" disabled>Selecione uma categoria</option>
                   {categories && categories.map((cat) => (
                     <option key={cat.id} value={String(cat.id)}>{cat.name}</option>
                   ))}
@@ -121,7 +119,7 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
                   <p className="block text-gray-700 mb-2 text-sm">Pré-visualização:</p>
                   <img src={imageUrl} alt="Pré-visualização" className="w-full h-40 object-contain rounded-lg border" />
                 </div>
-               )}
+                )}
             </div>
           </div>
 
