@@ -1,4 +1,4 @@
-// src/components/admin/ProductModal.tsx - VERSÃO FINAL CORRIGIDA E LIMPA
+// src/components/admin/ProductModal.tsx - VERSÃO FINAL COM VALIDAÇÃO DE UPLOAD
 
 import { useState, useEffect } from 'react';
 import { X, Package } from 'lucide-react';
@@ -55,14 +55,34 @@ export default function ProductModal({ product, onClose, onSaveSuccess }: Produc
     }
   }, [product]);
 
+  // --- FUNÇÃO CORRIGIDA COM VALIDAÇÃO ---
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setErrorMessage(''); // Limpa erros antigos
     const file = e.target.files?.[0];
-    if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => { setImagePreview(reader.result as string); };
-      reader.readAsDataURL(file);
+
+    if (!file) {
+      return;
     }
+
+    // Validação de Tipo
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setErrorMessage('Formato de arquivo inválido. Use JPG, PNG ou WEBP.');
+      return;
+    }
+
+    // Validação de Tamanho (5MB)
+    const maxSizeInBytes = 5 * 1024 * 1024;
+    if (file.size > maxSizeInBytes) {
+      setErrorMessage('Arquivo muito grande. O tamanho máximo é de 5MB.');
+      return;
+    }
+
+    // Se passou, continua
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => { setImagePreview(reader.result as string); };
+    reader.readAsDataURL(file);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
