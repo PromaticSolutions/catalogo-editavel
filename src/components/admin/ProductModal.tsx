@@ -18,23 +18,23 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
   const [imageUrl, setImageUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // useEffect simplificado para não quebrar
   useEffect(() => {
     if (product) {
       setName(product.name);
       setDescription(product.description);
       setPrice(String(product.price));
-      // Garante que o categoryId seja uma string para o select funcionar
       setCategoryId(String(product.category_id || ''));
       setImageUrl(product.image_url);
     } else {
-      // Limpa o formulário para um novo produto
+      // Para um novo produto, apenas limpa os campos
       setName('');
       setDescription('');
       setPrice('');
-      setCategoryId(''); // Começa com o campo de categoria vazio
+      setCategoryId('');
       setImageUrl('');
     }
-  }, [product]);
+  }, [product]); // Depende apenas do 'product' para evitar ciclos
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,9 +44,7 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
       name,
       description,
       price: parseFloat(price),
-      // AQUI ESTÁ A CORREÇÃO:
-      // Se parseInt(categoryId) resultar em NaN (ex: string vazia), envia null.
-      // Caso contrário, envia o número da categoria.
+      // A correção segura para o problema do NaN
       category_id: parseInt(categoryId, 10) || null,
       image_url: imageUrl,
     };
@@ -83,26 +81,11 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
             <div>
               <div className="mb-4">
                 <label className="block text-gray-700 mb-2" htmlFor="name">Nome do Produto</label>
-                <input
-                  id="name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  required
-                />
+                <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full px-3 py-2 border rounded-lg" required />
               </div>
               <div className="mb-4">
                 <label className="block text-gray-700 mb-2" htmlFor="price">Preço</label>
-                <input
-                  id="price"
-                  type="number"
-                  step="0.01"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  required
-                />
+                <input id="price" type="number" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} className="w-full px-3 py-2 border rounded-lg" required />
               </div>
               <div className="mb-4">
                 <label className="block text-gray-700 mb-2" htmlFor="category">Categoria</label>
@@ -111,10 +94,11 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
                   value={categoryId}
                   onChange={(e) => setCategoryId(e.target.value)}
                   className="w-full px-3 py-2 border rounded-lg"
-                  required // O 'required' garante que o usuário deve escolher uma opção
+                  required
                 >
                   <option value="" disabled>Selecione uma categoria</option>
-                  {categories.map((cat) => (
+                  {/* Verificação de segurança: só executa o .map se 'categories' existir */}
+                  {categories && categories.map((cat) => (
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
                 </select>
@@ -124,15 +108,7 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
             <div>
               <div className="mb-4">
                 <label className="block text-gray-700 mb-2" htmlFor="imageUrl">URL da Imagem</label>
-                <input
-                  id="imageUrl"
-                  type="text"
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  placeholder="https://exemplo.com/imagem.png"
-                  required
-                />
+                <input id="imageUrl" type="text" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} className="w-full px-3 py-2 border rounded-lg" placeholder="https://exemplo.com/imagem.png" required />
               </div>
               {imageUrl && (
                 <div className="mb-4">
@@ -145,30 +121,12 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
 
           <div className="mt-4">
             <label className="block text-gray-700 mb-2" htmlFor="description">Descrição</label>
-            <textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg"
-              rows={4}
-            ></textarea>
+            <textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full px-3 py-2 border rounded-lg" rows={4}></textarea>
           </div>
 
           <div className="flex justify-end gap-4 mt-6">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-300"
-            >
-              {isSubmitting ? 'Salvando...' : 'Salvar Produto'}
-            </button>
+            <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400">Cancelar</button>
+            <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-300">{isSubmitting ? 'Salvando...' : 'Salvar Produto'}</button>
           </div>
         </form>
       </div>
