@@ -19,16 +19,11 @@ export default function Products() {
   const fetchProducts = async () => {
     let query = supabase
       .from('products')
-      .select('*, categories(*)', { count: 'exact' })
+      .select('*, categories(name)', { count: 'exact' })
       .order('name', { ascending: true });
 
-    if (searchTerm) {
-      query = query.ilike('name', `%${searchTerm}%`);
-    }
-
-    if (selectedCategory) {
-      query = query.eq('category_id', selectedCategory);
-    }
+    if (searchTerm) query = query.ilike('name', `%${searchTerm}%`);
+    if (selectedCategory) query = query.eq('category_id', selectedCategory);
 
     const from = (page - 1) * productsPerPage;
     const to = from + productsPerPage - 1;
@@ -36,9 +31,8 @@ export default function Products() {
 
     const { data, error, count } = await query;
 
-    if (error) {
-      toast.error('Erro ao buscar produtos: ' + error.message);
-    } else if (data) {
+    if (error) toast.error('Erro ao buscar produtos: ' + error.message);
+    else if (data) {
       setProducts(data as Product[]);
       setTotalProducts(count || 0);
     }
@@ -46,11 +40,8 @@ export default function Products() {
 
   const fetchCategories = async () => {
     const { data, error } = await supabase.from('categories').select('*');
-    if (error) {
-      toast.error('Erro ao buscar categorias: ' + error.message);
-    } else {
-      setCategories(data as Category[]);
-    }
+    if (error) toast.error('Erro ao buscar categorias: ' + error.message);
+    else setCategories(data as Category[]);
   };
 
   useEffect(() => {
@@ -70,14 +61,12 @@ export default function Products() {
   };
 
   const handleDelete = async (productId: number) => {
-    if (window.confirm('Tem certeza que deseja excluir este produto?')) {
-      const { error } = await supabase.from('products').delete().eq('id', productId);
-      if (error) {
-        toast.error('Erro ao excluir produto: ' + error.message);
-      } else {
-        toast.success('Produto excluído com sucesso!');
-        fetchProducts();
-      }
+    if (!window.confirm('Tem certeza que deseja excluir este produto?')) return;
+    const { error } = await supabase.from('products').delete().eq('id', productId);
+    if (error) toast.error('Erro ao excluir produto: ' + error.message);
+    else {
+      toast.success('Produto excluído com sucesso!');
+      fetchProducts();
     }
   };
 
@@ -95,6 +84,7 @@ export default function Products() {
         </button>
       </div>
 
+      {/* Filtros */}
       <div className="flex gap-4 mb-4">
         <div className="relative flex-grow">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl">🔍</span>
@@ -102,30 +92,23 @@ export default function Products() {
             type="text"
             placeholder="Buscar por nome..."
             value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setPage(1);
-            }}
+            onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
             className="w-full pl-10 pr-4 py-2 border rounded-lg"
           />
         </div>
         <select
           value={selectedCategory}
-          onChange={(e) => {
-            setSelectedCategory(e.target.value);
-            setPage(1);
-          }}
+          onChange={(e) => { setSelectedCategory(e.target.value); setPage(1); }}
           className="border rounded-lg px-4 py-2"
         >
           <option value="">Todas as Categorias</option>
           {categories.map((cat) => (
-            <option key={cat.id} value={cat.id}>
-              {cat.name}
-            </option>
+            <option key={cat.id} value={cat.id}>{cat.name}</option>
           ))}
         </select>
       </div>
 
+      {/* Tabela de Produtos */}
       <div className="bg-white shadow-md rounded-lg overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -156,6 +139,7 @@ export default function Products() {
         </table>
       </div>
 
+      {/* Paginação */}
       <div className="flex items-center justify-between mt-4">
         <span className="text-sm text-gray-700">
           Página {page} de {totalPages}
