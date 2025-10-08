@@ -1,11 +1,15 @@
+// src/components/admin/AdminPanel.tsx - VERSÃO COM ÍCONE CORRETO
+
 import { useState } from 'react';
-import { LayoutDashboard, Package, ShoppingCart, Warehouse, Palette, LogOut, Menu, X } from 'lucide-react';
+// Adicionamos o ícone 'Package' e o renomeamos para 'CategoryIcon'
+import { LayoutDashboard, Package, ShoppingCart, Warehouse, Palette, LogOut, Menu, X, Package as CategoryIcon } from 'lucide-react';
 import { adminLogout } from '../../lib/auth';
 import Dashboard from './Dashboard';
 import Products from './Products';
 import Sales from './Sales';
 import Inventory from './Inventory';
 import Styling from './Styling';
+import Categories from './Categories';
 
 interface AdminPanelProps {
   onLogout: () => void;
@@ -25,6 +29,7 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
     { id: 'sales', label: 'Vendas', icon: ShoppingCart },
     { id: 'inventory', label: 'Estoque', icon: Warehouse },
     { id: 'products', label: 'Produtos', icon: Package },
+    { id: 'categories', label: 'Categorias', icon: CategoryIcon }, // << ÍCONE CORRIGIDO
     { id: 'styling', label: 'Estilização', icon: Palette },
   ];
 
@@ -38,6 +43,8 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
         return <Sales />;
       case 'inventory':
         return <Inventory />;
+      case 'categories':
+        return <Categories />;
       case 'styling':
         return <Styling />;
       default:
@@ -45,6 +52,7 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
     }
   };
 
+  // O resto do seu JSX continua o mesmo...
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <aside

@@ -1,3 +1,5 @@
+// src/lib/supabase.ts - VERSÃO FINAL COM category_id
+
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -26,6 +28,7 @@ export interface Product {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  category_id: string | null; // << CORREÇÃO APLICADA AQUI
 }
 
 export interface Sale {
