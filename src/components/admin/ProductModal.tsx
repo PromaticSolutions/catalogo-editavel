@@ -18,23 +18,22 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
   const [imageUrl, setImageUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // useEffect simplificado para não quebrar
   useEffect(() => {
     if (product) {
       setName(product.name);
       setDescription(product.description);
       setPrice(String(product.price));
+      // CORREÇÃO #1: Garante que o valor inicial seja uma string, mesmo se for null
       setCategoryId(String(product.category_id || ''));
       setImageUrl(product.image_url);
     } else {
-      // Para um novo produto, apenas limpa os campos
       setName('');
       setDescription('');
       setPrice('');
       setCategoryId('');
       setImageUrl('');
     }
-  }, [product]); // Depende apenas do 'product' para evitar ciclos
+  }, [product]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,7 +43,6 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
       name,
       description,
       price: parseFloat(price),
-      // A correção segura para o problema do NaN
       category_id: parseInt(categoryId, 10) || null,
       image_url: imageUrl,
     };
@@ -97,9 +95,9 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
                   required
                 >
                   <option value="" disabled>Selecione uma categoria</option>
-                  {/* Verificação de segurança: só executa o .map se 'categories' existir */}
+                  {/* CORREÇÃO #2: Garante que o 'value' do option seja sempre uma string */}
                   {categories && categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    <option key={cat.id} value={String(cat.id)}>{cat.name}</option>
                   ))}
                 </select>
               </div>
