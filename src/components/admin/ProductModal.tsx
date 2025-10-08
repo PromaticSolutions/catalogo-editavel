@@ -105,6 +105,50 @@ const handleSubmit = async (e: React.FormEvent) => {
     setUploading(false);
   }
 
+  // DENTRO DO SEU ProductModal.tsx
+
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setLoading(true);
+  setErrorMessage('');
+
+  let imageUrl = product ? product.image_url : '';
+
+  // --- A GRANDE MUDANÇA ESTÁ AQUI ---
+  if (imageFile) {
+    setUploading(true);
+
+    const fileExt = imageFile.name.split('.').pop();
+    const fileName = `${Date.now()}.${fileExt}`;
+    
+    // O PULO DO GATO: Passamos o 'contentType' explicitamente
+    const options = {
+      cacheControl: '3600',
+      upsert: true,
+      contentType: imageFile.type // << GARANTE QUE O SUPABASE SAIBA O QUE ESTÁ RECEBENDO
+    };
+
+    const { data: uploadData, error: uploadError } = await supabase
+      .storage
+      .from('product-images')
+      .upload(fileName, imageFile, options); // << Passamos as 'options' completas
+
+    if (uploadError) {
+      setErrorMessage(`Erro no upload da imagem: ${uploadError.message}`);
+      setLoading(false);
+      setUploading(false);
+      return;
+    }
+
+    const { data: publicUrlData } = supabase
+      .storage
+      .from('product-images')
+      .getPublicUrl(uploadData.path);
+    
+    imageUrl = publicUrlData.publicUrl;
+    setUploading(false);
+  }
+
   const dataToSave = {
     name: formData.name,
     description: formData.description,
