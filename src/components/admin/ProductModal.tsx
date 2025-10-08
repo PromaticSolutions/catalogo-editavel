@@ -11,44 +11,61 @@ interface ProductModalProps {
 }
 
 export default function ProductModal({ product, categories, onClose }: ProductModalProps) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [price, setPrice] = useState('');
-  const [categoryId, setCategoryId] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
-  const [stockQuantity, setStockQuantity] = useState('0');
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    price: '',
+    categoryId: '',
+    imageUrl: '',
+    stockQuantity: '0',
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (product) {
-      setName(product.name || '');
-      setDescription(product.description || '');
-      setPrice(String(product.price || ''));
-      setCategoryId(String(product.category_id || ''));
-      setImageUrl(product.image_url || '');
-      setStockQuantity(String(product.stock_quantity || '0'));
+      setFormData({
+        name: product.name || '',
+        description: product.description || '',
+        price: String(product.price || ''),
+        categoryId: String(product.category_id || ''),
+        imageUrl: product.image_url || '',
+        stockQuantity: String(product.stock_quantity || '0'),
+      });
     } else {
-      setName('');
-      setDescription('');
-      setPrice('');
-      setCategoryId('');
-      setImageUrl('');
-      setStockQuantity('0');
+      setFormData({
+        name: '',
+        description: '',
+        price: '',
+        categoryId: '',
+        imageUrl: '',
+        stockQuantity: '0',
+      });
     }
   }, [product]);
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!formData.categoryId) {
+      toast.error('Por favor, selecione uma categoria.');
+      return;
+    }
+    
     setIsSubmitting(true);
 
     const productData = {
-      id: product ? product.id : Date.now(), // <-- CORRIGIDO: Gera ID para novos produtos
-      name,
-      description,
-      price: parseFloat(price),
-      category_id: parseInt(categoryId, 10),
-      image_url: imageUrl,
-      stock_quantity: parseInt(stockQuantity, 10) || 0, // <-- CORRIGIDO: Envia o estoque
+      id: product ? product.id : Date.now(),
+      name: formData.name,
+      description: formData.description,
+      price: parseFloat(formData.price),
+      category_id: parseInt(formData.categoryId, 10),
+      image_url: formData.imageUrl,
+      stock_quantity: parseInt(formData.stockQuantity, 10) || 0,
     };
 
     try {
@@ -86,40 +103,40 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
             <div>
               <div className="mb-4">
                 <label className="block text-gray-700 mb-2">Nome do Produto</label>
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full px-3 py-2 border rounded-lg" required />
+                <input name="name" type="text" value={formData.name} onChange={handleChange} className="w-full px-3 py-2 border rounded-lg" required />
               </div>
               <div className="mb-4">
                 <label className="block text-gray-700 mb-2">Preço</label>
-                <input type="number" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} className="w-full px-3 py-2 border rounded-lg" required />
+                <input name="price" type="number" step="0.01" value={formData.price} onChange={handleChange} className="w-full px-3 py-2 border rounded-lg" required />
               </div>
               <div className="mb-4">
                 <label className="block text-gray-700 mb-2">Categoria</label>
-                <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="w-full px-3 py-2 border rounded-lg" required>
+                <select name="categoryId" value={formData.categoryId} onChange={handleChange} className="w-full px-3 py-2 border rounded-lg" required>
                   <option value="" disabled>Selecione uma categoria</option>
                   {categories.map((cat) => (<option key={cat.id} value={String(cat.id)}>{cat.name}</option>))}
                 </select>
               </div>
               <div className="mb-4">
                 <label className="block text-gray-700 mb-2">Quantidade em Estoque</label>
-                <input type="number" min="0" value={stockQuantity} onChange={(e) => setStockQuantity(e.target.value)} className="w-full px-3 py-2 border rounded-lg" required />
+                <input name="stockQuantity" type="number" min="0" value={formData.stockQuantity} onChange={handleChange} className="w-full px-3 py-2 border rounded-lg" required />
               </div>
             </div>
             <div>
               <div className="mb-4">
                 <label className="block text-gray-700 mb-2">URL da Imagem</label>
-                <input type="text" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} className="w-full px-3 py-2 border rounded-lg" placeholder="https://exemplo.com/imagem.png" required />
+                <input name="imageUrl" type="text" value={formData.imageUrl} onChange={handleChange} className="w-full px-3 py-2 border rounded-lg" placeholder="https://exemplo.com/imagem.png" required />
               </div>
-              {imageUrl && (
+              {formData.imageUrl && (
                 <div className="mb-4">
                   <p className="text-sm text-gray-600 mb-2">Pré-visualização:</p>
-                  <img src={imageUrl} alt="Pré-visualização" className="w-full h-40 object-contain rounded-lg border" />
+                  <img src={formData.imageUrl} alt="Pré-visualização" className="w-full h-40 object-contain rounded-lg border" />
                 </div>
                )}
             </div>
           </div>
           <div className="mt-4">
             <label className="block text-gray-700 mb-2">Descrição</label>
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} className="w-full px-3 py-2 border rounded-lg" rows={4}></textarea>
+            <textarea name="description" value={formData.description} onChange={handleChange} className="w-full px-3 py-2 border rounded-lg" rows={4}></textarea>
           </div>
           <div className="flex justify-end gap-4 mt-6">
             <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400">Cancelar</button>
