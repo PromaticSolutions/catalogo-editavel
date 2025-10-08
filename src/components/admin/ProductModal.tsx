@@ -38,8 +38,9 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
     e.preventDefault();
     setIsSubmitting(true);
 
-    // SUA VALIDAÇÃO GENIAL - VAMOS APENAS AJUSTÁ-LA
-    if (!categoryId) { // MUDANÇA #1: Verificar a string 'categoryId' diretamente
+    // ✅ Correção definitiva: valida e converte o ID corretamente
+    const parsedCategoryId = Number(categoryId);
+    if (!parsedCategoryId || isNaN(parsedCategoryId)) {
       toast.error('Por favor, selecione uma categoria válida');
       setIsSubmitting(false);
       return;
@@ -49,7 +50,7 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
       name,
       description,
       price: parseFloat(price),
-      category_id: parseInt(categoryId, 10), // Agora isso é seguro
+      category_id: parsedCategoryId,
       image_url: imageUrl,
     };
 
@@ -58,7 +59,8 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
       const { error: updateError } = await supabase
         .from('products')
         .update(productData)
-        .eq('id', product.id);
+        .eq('id', product.id)
+        .select(); // garante retorno dos dados atualizados
       error = updateError;
     } else {
       const { error: insertError } = await supabase
@@ -73,26 +75,53 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
       toast.success(`Produto ${product ? 'atualizado' : 'criado'} com sucesso!`);
       onClose();
     }
+
     setIsSubmitting(false);
   };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-2xl">
-        <h2 className="text-2xl font-bold mb-6">{product ? 'Editar Produto' : 'Adicionar Novo Produto'}</h2>
+        <h2 className="text-2xl font-bold mb-6">
+          {product ? 'Editar Produto' : 'Adicionar Novo Produto'}
+        </h2>
+
         <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <div className="mb-4">
-                <label className="block text-gray-700 mb-2" htmlFor="name">Nome do Produto</label>
-                <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full px-3 py-2 border rounded-lg" required />
+                <label className="block text-gray-700 mb-2" htmlFor="name">
+                  Nome do Produto
+                </label>
+                <input
+                  id="name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg"
+                  required
+                />
               </div>
+
               <div className="mb-4">
-                <label className="block text-gray-700 mb-2" htmlFor="price">Preço</label>
-                <input id="price" type="number" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} className="w-full px-3 py-2 border rounded-lg" required />
+                <label className="block text-gray-700 mb-2" htmlFor="price">
+                  Preço
+                </label>
+                <input
+                  id="price"
+                  type="number"
+                  step="0.01"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg"
+                  required
+                />
               </div>
+
               <div className="mb-4">
-                <label className="block text-gray-700 mb-2" htmlFor="category">Categoria</label>
+                <label className="block text-gray-700 mb-2" htmlFor="category">
+                  Categoria
+                </label>
                 <select
                   id="category"
                   value={categoryId}
@@ -100,37 +129,78 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
                   className="w-full px-3 py-2 border rounded-lg"
                   required
                 >
-                  {/* MUDANÇA #2: A opção vazia agora é 'disabled' */}
-                  <option value="" disabled>Selecione uma categoria</option>
-                  {categories && categories.map((cat) => (
-                    <option key={cat.id} value={String(cat.id)}>{cat.name}</option>
-                  ))}
+                  <option value="" hidden>
+                    Selecione uma categoria
+                  </option>
+                  {categories &&
+                    categories.map((cat) => (
+                      <option key={cat.id} value={String(cat.id)}>
+                        {cat.name}
+                      </option>
+                    ))}
                 </select>
               </div>
             </div>
-            
+
             <div>
               <div className="mb-4">
-                <label className="block text-gray-700 mb-2" htmlFor="imageUrl">URL da Imagem</label>
-                <input id="imageUrl" type="text" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} className="w-full px-3 py-2 border rounded-lg" placeholder="https://exemplo.com/imagem.png" required />
+                <label className="block text-gray-700 mb-2" htmlFor="imageUrl">
+                  URL da Imagem
+                </label>
+                <input
+                  id="imageUrl"
+                  type="text"
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg"
+                  placeholder="https://exemplo.com/imagem.png"
+                  required
+                />
               </div>
+
               {imageUrl && (
                 <div className="mb-4">
-                  <p className="block text-gray-700 mb-2 text-sm">Pré-visualização:</p>
-                  <img src={imageUrl} alt="Pré-visualização" className="w-full h-40 object-contain rounded-lg border" />
+                  <p className="block text-gray-700 mb-2 text-sm">
+                    Pré-visualização:
+                  </p>
+                  <img
+                    src={imageUrl}
+                    alt="Pré-visualização"
+                    className="w-full h-40 object-contain rounded-lg border"
+                  />
                 </div>
-                )}
+              )}
             </div>
           </div>
 
           <div className="mt-4">
-            <label className="block text-gray-700 mb-2" htmlFor="description">Descrição</label>
-            <textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full px-3 py-2 border rounded-lg" rows={4}></textarea>
+            <label className="block text-gray-700 mb-2" htmlFor="description">
+              Descrição
+            </label>
+            <textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full px-3 py-2 border rounded-lg"
+              rows={4}
+            ></textarea>
           </div>
 
           <div className="flex justify-end gap-4 mt-6">
-            <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400">Cancelar</button>
-            <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-300">{isSubmitting ? 'Salvando...' : 'Salvar Produto'}</button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-300"
+            >
+              {isSubmitting ? 'Salvando...' : 'Salvar Produto'}
+            </button>
           </div>
         </form>
       </div>
