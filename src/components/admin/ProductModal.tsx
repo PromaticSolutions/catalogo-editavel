@@ -16,7 +16,6 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
   const [price, setPrice] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [imageUrl, setImageUrl] = useState('');
-  const [stockQuantity, setStockQuantity] = useState(''); // CORRIGIDO
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -26,14 +25,12 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
       setPrice(String(product.price));
       setCategoryId(String(product.category_id));
       setImageUrl(product.image_url);
-      setStockQuantity(String(product.stock_quantity)); // CORRIGIDO
     } else {
       setName('');
       setDescription('');
       setPrice('');
       setCategoryId('');
       setImageUrl('');
-      setStockQuantity(''); // CORRIGIDO
     }
   }, [product]);
 
@@ -41,13 +38,13 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
     e.preventDefault();
     setIsSubmitting(true);
 
+    // Objeto de dados SIMPLES, sem estoque
     const productData = {
       name,
       description,
       price: parseFloat(price),
       category_id: parseInt(categoryId),
       image_url: imageUrl,
-      stock_quantity: parseInt(stockQuantity, 10), // CORRIGIDO
     };
 
     let error;
@@ -95,10 +92,7 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
                   {categories.map((cat) => (<option key={cat.id} value={cat.id}>{cat.name}</option>))}
                 </select>
               </div>
-              <div className="mb-4">
-                <label className="block text-gray-700 mb-2" htmlFor="quantity">Quantidade em Estoque</label>
-                <input id="quantity" type="number" value={stockQuantity} onChange={(e) => setStockQuantity(e.target.value)} className="w-full px-3 py-2 border rounded-lg" required min="0" placeholder="Ex: 10" />
-              </div>
+              {/* Campo de quantidade foi REMOVIDO daqui */}
             </div>
             
             <div>
