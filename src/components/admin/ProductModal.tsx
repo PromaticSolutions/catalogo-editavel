@@ -27,7 +27,9 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
         name: product.name || '',
         description: product.description || '',
         price: String(product.price || ''),
-        categoryId: String(product.category_id || ''),
+        // A CORREÇÃO ESTÁ AQUI:
+        // Se não houver category_id, o valor do select deve ser '', que corresponde a "Selecione uma categoria"
+        categoryId: product.category_id ? String(product.category_id) : '',
         imageUrl: product.image_url || '',
         stockQuantity: String(product.stock_quantity || '0'),
       });
@@ -58,7 +60,6 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
     
     setIsSubmitting(true);
 
-    // CORREÇÃO: Não incluir o ID ao criar novo produto
     const productData = {
       name: formData.name,
       description: formData.description,
@@ -68,20 +69,15 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
       stock_quantity: parseInt(formData.stockQuantity, 10) || 0,
     };
 
-    console.log('Dados sendo enviados:', productData);
-    console.log('É edição?', !!product);
-
     try {
       let error;
       if (product) {
-        // Atualiza produto existente
         const { error: updateError } = await supabase
           .from('products')
           .update(productData)
           .eq('id', product.id);
         error = updateError;
       } else {
-        // Insere novo produto (Supabase gera o ID automaticamente)
         const { error: insertError } = await supabase
           .from('products')
           .insert([productData]);
@@ -108,6 +104,7 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
       <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-2xl">
         <h2 className="text-2xl font-bold mb-6">{product ? 'Editar Produto' : 'Adicionar Novo Produto'}</h2>
         <form onSubmit={handleSubmit}>
+          {/* O resto do formulário permanece o mesmo */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <div className="mb-4">
@@ -121,7 +118,7 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
               <div className="mb-4">
                 <label className="block text-gray-700 mb-2">Categoria</label>
                 <select name="categoryId" value={formData.categoryId} onChange={handleChange} className="w-full px-3 py-2 border rounded-lg" required>
-                  <option value="">Selecione uma categoria</option>
+                  <option value="" disabled>Selecione uma categoria</option>
                   {categories.map((cat) => (<option key={cat.id} value={String(cat.id)}>{cat.name}</option>))}
                 </select>
               </div>
