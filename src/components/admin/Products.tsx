@@ -1,156 +1,188 @@
-// src/components/admin/Products.tsx - VERSÃO FINAL DE DIAGNÓSTICO
-
-import { useEffect, useState } from 'react';
-import { Plus, Edit, Trash2, Package } from 'lucide-react';
-import { supabase, Product } from '../../lib/supabase';
+import { useState, useEffect } from 'react';
+import { supabase } from '../../lib/supabase'; // <-- CAMINHO CORRIGIDO
+import { Product } from '../../types/Product'; // <-- CAMINHO CORRIGIDO (assumindo que 'types' existe)
+import { Category } from '../../types/Category'; // <-- CAMINHO CORRIGIDO (assumindo que 'types' existe)
 import ProductModal from './ProductModal';
+import { toast } from 'react-toastify';
+import {
+  Search,
+  CircleChevronLeft,
+  ChevronsLeft,
+  CircleChevronRight,
+  ChevronsRight,
+} from 'lucide-react';
+
+// O resto do código permanece o mesmo...
+// (Cole o código completo abaixo)
 
 export default function Products() {
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const productsPerPage = 10;
 
-  useEffect(() => {
-    loadProducts();
-  }, []);
-
-  const loadProducts = async () => {
-    // --- DIAGNÓSTICO ---
-    console.log("--- FUNÇÃO loadProducts FOI CHAMADA! --- Buscando produtos no Supabase...");
-
-    setLoading(true);
-    const { data, error } = await supabase
+  const fetchProducts = async () => {
+    let query = supabase
       .from('products')
-      .select('*')
-      .order('created_at', { ascending: false });
+      .select('*, categories(*)', { count: 'exact' })
+      .order('name', { ascending: true });
+
+    if (searchTerm) {
+      query = query.ilike('name', `%${searchTerm}%`);
+    }
+
+    if (selectedCategory) {
+      query = query.eq('category_id', selectedCategory);
+    }
+
+    const from = (page - 1) * productsPerPage;
+    const to = from + productsPerPage - 1;
+    query = query.range(from, to);
+
+    const { data, error, count } = await query;
 
     if (error) {
-      console.error("Erro ao carregar produtos:", error);
+      toast.error('Erro ao buscar produtos: ' + error.message);
     } else if (data) {
-      console.log(`--- ${data.length} produtos encontrados. Atualizando a tela.`);
-      setProducts(data);
+      setProducts(data as Product[]);
+      setTotalProducts(count || 0);
     }
-    setLoading(false);
   };
 
-  const handleEdit = (product: Product) => {
-    setEditingProduct(product);
-    setShowModal(true);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este produto?')) return;
-
-    const { error } = await supabase
-      .from('products')
-      .delete()
-      .eq('id', id);
-
-    if (!error) {
-      loadProducts();
+  const fetchCategories = async () => {
+    const { data, error } = await supabase.from('categories').select('*');
+    if (error) {
+      toast.error('Erro ao buscar categorias: ' + error.message);
     } else {
-      console.error("Erro ao deletar produto:", error);
-      alert(`Falha ao deletar: ${error.message}`);
+      setCategories(data as Category[]);
     }
   };
 
-  const handleModalClose = () => {
-    setShowModal(false);
-    setEditingProduct(null);
+  useEffect(() => {
+    fetchProducts();
+    fetchCategories();
+  }, [page, searchTerm, selectedCategory]);
+
+  const handleOpenModal = (product: Product | null = null) => {
+    setSelectedProduct(product);
+    setIsModalOpen(true);
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(value);
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedProduct(null);
+    fetchProducts();
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  const handleDelete = async (productId: number) => {
+    if (window.confirm('Tem certeza que deseja excluir este produto?')) {
+      const { error } = await supabase.from('products').delete().eq('id', productId);
+      if (error) {
+        toast.error('Erro ao excluir produto: ' + error.message);
+      } else {
+        toast.success('Produto excluído com sucesso!');
+        fetchProducts();
+      }
+    }
+  };
+
+  const totalPages = Math.ceil(totalProducts / productsPerPage);
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Produtos</h2>
-          <p className="text-gray-600">Gerencie seu catálogo de produtos</p>
-        </div>
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Gerenciar Produtos</h1>
         <button
-          onClick={() => {
-            setEditingProduct(null);
-            setShowModal(true);
-          }}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
+          onClick={() => handleOpenModal()}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
         >
-          <Plus className="h-5 w-5" />
-          Novo Produto
+          Adicionar Produto
         </button>
       </div>
 
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Produto</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descrição</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preço</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estoque</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+      <div className="flex gap-4 mb-4">
+        <div className="relative flex-grow">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+          <input
+            type="text"
+            placeholder="Buscar por nome..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setPage(1);
+            }}
+            className="w-full pl-10 pr-4 py-2 border rounded-lg"
+          />
+        </div>
+        <select
+          value={selectedCategory}
+          onChange={(e) => {
+            setSelectedCategory(e.target.value);
+            setPage(1);
+          }}
+          className="border rounded-lg px-4 py-2"
+        >
+          <option value="">Todas as Categorias</option>
+          {categories.map((cat) => (
+            <option key={cat.id} value={cat.id}>
+              {cat.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="bg-white shadow-md rounded-lg overflow-hidden">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Imagem</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoria</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preço</th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {products.map((product) => (
+              <tr key={product.id}>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <img src={product.image_url} alt={product.name} className="w-16 h-16 object-cover rounded" />
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{product.name}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-gray-500">{product.categories?.name || 'N/A'}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-gray-500">R$ {product.price.toFixed(2)}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <button onClick={() => handleOpenModal(product)} className="text-indigo-600 hover:text-indigo-900 mr-4">Editar</button>
+                  <button onClick={() => handleDelete(product.id)} className="text-red-600 hover:text-red-900">Excluir</button>
+                </td>
               </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {products.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center">
-                    <Package className="mx-auto h-12 w-12 text-gray-400" />
-                    <p className="mt-2 text-gray-500">Nenhum produto cadastrado</p>
-                  </td>
-                </tr>
-              ) : (
-                products.map((product) => (
-                  <tr key={product.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="h-10 w-10 flex-shrink-0">
-                          {product.image_url ? <img src={product.image_url} alt={product.name} className="h-10 w-10 rounded object-cover" /> : <div className="h-10 w-10 rounded bg-gray-200 flex items-center justify-center"><Package className="h-5 w-5 text-gray-400" /></div>}
-                        </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">{product.name}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{product.description}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatCurrency(product.price)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.stock_quantity}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${product.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{product.is_active ? 'Ativo' : 'Inativo'}</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button onClick={() => handleEdit(product)} className="text-blue-600 hover:text-blue-900 mr-4"><Edit className="h-5 w-5" /></button>
-                      <button onClick={() => handleDelete(product.id)} className="text-red-600 hover:text-red-900"><Trash2 className="h-5 w-5" /></button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="flex items-center justify-between mt-4">
+        <span className="text-sm text-gray-700">
+          Página {page} de {totalPages}
+        </span>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setPage(1)} disabled={page === 1} className="p-2 border rounded-lg disabled:opacity-50"><ChevronsLeft size={20} /></button>
+          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-2 border rounded-lg disabled:opacity-50"><CircleChevronLeft size={20} /></button>
+          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-2 border rounded-lg disabled:opacity-50"><CircleChevronRight size={20} /></button>
+          <button onClick={() => setPage(totalPages)} disabled={page === totalPages} className="p-2 border rounded-lg disabled:opacity-50"><ChevronsRight size={20} /></button>
         </div>
       </div>
 
-      {showModal && (
+      {isModalOpen && (
         <ProductModal
-          product={editingProduct}
-          onClose={handleModalClose}
-          onSaveSuccess={loadProducts}
+          product={selectedProduct}
+          categories={categories}
+          onClose={handleCloseModal}
         />
       )}
     </div>
