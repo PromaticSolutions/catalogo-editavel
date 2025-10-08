@@ -1,4 +1,4 @@
-// src/components/admin/ProductModal.tsx - VERSÃO FINAL COM SELEÇÃO DE CATEGORIA
+// src/components/admin/ProductModal.tsx - VERSÃO FINAL CORRIGIDA E LIMPA
 
 import { useState, useEffect } from 'react';
 import { X, Package } from 'lucide-react';
@@ -65,120 +65,61 @@ export default function ProductModal({ product, onClose, onSaveSuccess }: Produc
     }
   };
 
-  // DENTRO DO SEU ProductModal.tsx
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMessage('');
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setLoading(true);
-  setErrorMessage('');
+    let imageUrl = product ? product.image_url : '';
 
-  let imageUrl = product ? product.image_url : '';
-
-  if (imageFile) {
-    setUploading(true);
-
-    // --- CORREÇÃO 1: NOME DO ARQUIVO MAIS SEGURO ---
-    const fileExt = imageFile.name.split('.').pop();
-    const fileName = `${Date.now()}.${fileExt}`;
-    
-    const { data: uploadData, error: uploadError } = await supabase
-      .storage
-      .from('product-images')
-      .upload(fileName, imageFile, {
+    if (imageFile) {
+      setUploading(true);
+      const fileExt = imageFile.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const options = {
         cacheControl: '3600',
-        upsert: true, // --- CORREÇÃO 2: MUDAR PARA TRUE ---
-      });
+        upsert: true,
+        contentType: imageFile.type,
+      };
 
-    if (uploadError) {
-      setErrorMessage(`Erro no upload da imagem: ${uploadError.message}`);
-      setLoading(false);
+      const { data: uploadData, error: uploadError } = await supabase
+        .storage
+        .from('product-images')
+        .upload(fileName, imageFile, options);
+
+      if (uploadError) {
+        setErrorMessage(`Erro no upload: ${uploadError.message}`);
+        setLoading(false);
+        setUploading(false);
+        return;
+      }
+
+      const { data: publicUrlData } = supabase.storage.from('product-images').getPublicUrl(uploadData.path);
+      imageUrl = publicUrlData.publicUrl;
       setUploading(false);
-      return;
     }
 
-    const { data: publicUrlData } = supabase
-      .storage
-      .from('product-images')
-      .getPublicUrl(uploadData.path);
-    
-    imageUrl = publicUrlData.publicUrl;
-    setUploading(false);
-  }
-
-  // DENTRO DO SEU ProductModal.tsx
-
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setLoading(true);
-  setErrorMessage('');
-
-  let imageUrl = product ? product.image_url : '';
-
-  // --- A GRANDE MUDANÇA ESTÁ AQUI ---
-  if (imageFile) {
-    setUploading(true);
-
-    const fileExt = imageFile.name.split('.').pop();
-    const fileName = `${Date.now()}.${fileExt}`;
-    
-    // O PULO DO GATO: Passamos o 'contentType' explicitamente
-    const options = {
-      cacheControl: '3600',
-      upsert: true,
-      contentType: imageFile.type // << GARANTE QUE O SUPABASE SAIBA O QUE ESTÁ RECEBENDO
+    const dataToSave = {
+      name: formData.name,
+      description: formData.description,
+      price: parseFloat(formData.price) || 0,
+      image_url: imageUrl,
+      stock_quantity: parseInt(formData.stock_quantity) || 0,
+      is_active: formData.is_active,
+      category_id: formData.category_id || null,
     };
 
-    const { data: uploadData, error: uploadError } = await supabase
-      .storage
-      .from('product-images')
-      .upload(fileName, imageFile, options); // << Passamos as 'options' completas
-
-    if (uploadError) {
-      setErrorMessage(`Erro no upload da imagem: ${uploadError.message}`);
-      setLoading(false);
-      setUploading(false);
-      return;
+    if (product) {
+      const { error } = await supabase.from('products').update(dataToSave).eq('id', product.id);
+      if (error) { setErrorMessage(`Falha ao atualizar: ${error.message}`); } 
+      else { onSaveSuccess(); onClose(); }
+    } else {
+      const { error } = await supabase.from('products').insert(dataToSave);
+      if (error) { setErrorMessage(`Falha ao criar: ${error.message}`); } 
+      else { onSaveSuccess(); onClose(); }
     }
-
-    const { data: publicUrlData } = supabase
-      .storage
-      .from('product-images')
-      .getPublicUrl(uploadData.path);
-    
-    imageUrl = publicUrlData.publicUrl;
-    setUploading(false);
-  }
-
-  const dataToSave = {
-    name: formData.name,
-    description: formData.description,
-    price: parseFloat(formData.price) || 0,
-    image_url: imageUrl,
-    stock_quantity: parseInt(formData.stock_quantity) || 0,
-    is_active: formData.is_active,
-    category_id: formData.category_id || null,
+    setLoading(false);
   };
-
-  if (product) {
-    const { error } = await supabase.from('products').update(dataToSave).eq('id', product.id);
-    if (error) {
-      setErrorMessage(`Falha ao atualizar: ${error.message}`);
-    } else {
-      onSaveSuccess();
-      onClose();
-    }
-  } else {
-    const { error } = await supabase.from('products').insert(dataToSave);
-    if (error) {
-      setErrorMessage(`Falha ao criar: ${error.message}`);
-    } else {
-      onSaveSuccess();
-      onClose();
-    }
-  }
-
-  setLoading(false);
-};
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
