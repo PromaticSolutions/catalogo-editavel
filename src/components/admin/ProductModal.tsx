@@ -38,33 +38,25 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
     e.preventDefault();
     setIsSubmitting(true);
 
-    if (!categoryId) {
-      toast.error('Por favor, selecione uma categoria.');
-      setIsSubmitting(false);
-      return;
-    }
+    // A validação foi removida daqui porque o 'required' no select já a faz.
 
     const productData = {
       name,
       description,
       price: parseFloat(price),
-      category_id: parseInt(categoryId, 10), // converte para number, compatível com bigint
+      category_id: parseInt(categoryId, 10), // A conversão para número acontece aqui, de forma segura.
       image_url: imageUrl,
     };
-
-    console.log('submitData chamado', productData);
 
     try {
       let error;
       if (product) {
-        // Atualizar produto existente
         const { error: updateError } = await supabase
           .from('products')
           .update(productData)
           .eq('id', product.id);
         error = updateError;
       } else {
-        // Criar novo produto
         const { error: insertError } = await supabase
           .from('products')
           .insert([productData]);
@@ -95,24 +87,11 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
             <div>
               <div className="mb-4">
                 <label className="block text-gray-700 mb-2">Nome do Produto</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  required
-                />
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full px-3 py-2 border rounded-lg" required />
               </div>
               <div className="mb-4">
                 <label className="block text-gray-700 mb-2">Preço</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  required
-                />
+                <input type="number" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} className="w-full px-3 py-2 border rounded-lg" required />
               </div>
               <div className="mb-4">
                 <label className="block text-gray-700 mb-2">Categoria</label>
@@ -120,11 +99,11 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
                   value={categoryId}
                   onChange={(e) => setCategoryId(e.target.value)}
                   className="w-full px-3 py-2 border rounded-lg"
-                  required
+                  required // Este 'required' faz a validação para nós.
                 >
                   <option value="" disabled>Selecione uma categoria</option>
                   {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    <option key={cat.id} value={String(cat.id)}>{cat.name}</option>
                   ))}
                 </select>
               </div>
@@ -133,49 +112,25 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
             <div>
               <div className="mb-4">
                 <label className="block text-gray-700 mb-2">URL da Imagem</label>
-                <input
-                  type="text"
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  placeholder="https://exemplo.com/imagem.png"
-                  required
-                />
+                <input type="text" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} className="w-full px-3 py-2 border rounded-lg" placeholder="https://exemplo.com/imagem.png" required />
               </div>
               {imageUrl && (
                 <div className="mb-4">
                   <p className="text-sm text-gray-600 mb-2">Pré-visualização:</p>
                   <img src={imageUrl} alt="Pré-visualização" className="w-full h-40 object-contain rounded-lg border" />
                 </div>
-              )}
+               )}
             </div>
           </div>
 
           <div className="mt-4">
             <label className="block text-gray-700 mb-2">Descrição</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg"
-              rows={4}
-            ></textarea>
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} className="w-full px-3 py-2 border rounded-lg" rows={4}></textarea>
           </div>
 
           <div className="flex justify-end gap-4 mt-6">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-300"
-            >
-              {isSubmitting ? 'Salvando...' : 'Salvar Produto'}
-            </button>
+            <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400">Cancelar</button>
+            <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-300">{isSubmitting ? 'Salvando...' : 'Salvar Produto'}</button>
           </div>
         </form>
       </div>

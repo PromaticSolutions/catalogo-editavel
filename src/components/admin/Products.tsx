@@ -84,7 +84,6 @@ export default function Products() {
         </button>
       </div>
 
-      {/* Filtros */}
       <div className="flex gap-4 mb-4">
         <div className="relative flex-grow">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl">🔍</span>
@@ -103,12 +102,11 @@ export default function Products() {
         >
           <option value="">Todas as Categorias</option>
           {categories.map((cat) => (
-            <option key={cat.id} value={cat.id}>{cat.name}</option>
+            <option key={cat.id} value={String(cat.id)}>{cat.name}</option>
           ))}
         </select>
       </div>
 
-      {/* Tabela de Produtos */}
       <div className="bg-white shadow-md rounded-lg overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -139,7 +137,6 @@ export default function Products() {
         </table>
       </div>
 
-      {/* Paginação */}
       <div className="flex items-center justify-between mt-4">
         <span className="text-sm text-gray-700">
           Página {page} de {totalPages}
