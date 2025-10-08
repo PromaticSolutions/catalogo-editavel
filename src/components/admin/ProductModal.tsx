@@ -68,12 +68,12 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
     }
 
     const productData = {
-      name: name.trim(),
-      description: description.trim(),
-      price: parsedPrice,
-      category_id: parsedCategoryId,
-      image_url: imageUrl.trim(),
-    };
+     name,
+     description,
+     price: parseFloat(price),
+     category_id: categoryId, // <- agora envia corretamente o UUID
+     image_url: imageUrl,
+};
 
     try {
       let error = null;
