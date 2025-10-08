@@ -2,181 +2,140 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Product } from '../../types/Product';
 import { Category } from '../../types/Category';
-import ProductModal from './ProductModal';
 import { toast } from 'react-toastify';
 
-export default function Products() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [page, setPage] = useState(1);
-  const [totalProducts, setTotalProducts] = useState(0);
-  const productsPerPage = 10;
+interface ProductModalProps {
+  product: Product | null;
+  categories: Category[];
+  onClose: () => void;
+}
 
-  const fetchProducts = async () => {
-    // MUDANÇA SUTIL AQUI para ser mais explícito
-    let query = supabase
-      .from('products')
-      .select('*, categories(id, name)', { count: 'exact' }) // Pede explicitamente id e name da categoria
-      .order('name', { ascending: true });
-
-    if (searchTerm) {
-      query = query.ilike('name', `%${searchTerm}%`);
-    }
-
-    if (selectedCategory) {
-      query = query.eq('category_id', selectedCategory);
-    }
-
-    const from = (page - 1) * productsPerPage;
-    const to = from + productsPerPage - 1;
-    query = query.range(from, to);
-
-    const { data, error, count } = await query;
-
-    if (error) {
-      toast.error('Erro ao buscar produtos: ' + error.message);
-    } else if (data) {
-      setProducts(data as Product[]);
-      setTotalProducts(count || 0);
-    }
-  };
-
-  const fetchCategories = async () => {
-    const { data, error } = await supabase.from('categories').select('*');
-    if (error) {
-      toast.error('Erro ao buscar categorias: ' + error.message);
-    } else {
-      setCategories(data as Category[]);
-    }
-  };
+export default function ProductModal({ product, categories, onClose }: ProductModalProps) {
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [price, setPrice] = useState('');
+  const [categoryId, setCategoryId] = useState(''); // Manter como string
+  const [imageUrl, setImageUrl] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    fetchProducts();
-    fetchCategories();
-  }, [page, searchTerm, selectedCategory]);
-
-  const handleOpenModal = (product: Product | null = null) => {
-    setSelectedProduct(product);
-    setIsModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setSelectedProduct(null);
-    fetchProducts();
-  };
-
-  const handleDelete = async (productId: number) => {
-    if (window.confirm('Tem certeza que deseja excluir este produto?')) {
-      const { error } = await supabase.from('products').delete().eq('id', productId);
-      if (error) {
-        toast.error('Erro ao excluir produto: ' + error.message);
-      } else {
-        toast.success('Produto excluído com sucesso!');
-        fetchProducts();
-      }
+    if (product) {
+      setName(product.name);
+      setDescription(product.description);
+      setPrice(String(product.price));
+      // CORREÇÃO AQUI: Garante que o ID da categoria seja uma string para o <select>
+      setCategoryId(String(product.category_id)); 
+      setImageUrl(product.image_url);
+    } else {
+      // Ao criar um novo produto, define a primeira categoria da lista como padrão
+      // para evitar que o campo fique vazio.
+      setName('');
+      setDescription('');
+      setPrice('');
+      setCategoryId(categories.length > 0 ? String(categories[0].id) : ''); // CORREÇÃO AQUI
+      setImageUrl('');
     }
-  };
+  }, [product, categories]); // Adicionado 'categories' à lista de dependências
 
-  const totalPages = Math.ceil(totalProducts / productsPerPage);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    // Validação para garantir que categoryId não é uma string vazia
+    if (!categoryId) {
+      toast.error("Por favor, selecione uma categoria.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    const productData = {
+      name,
+      description,
+      price: parseFloat(price),
+      category_id: parseInt(categoryId, 10), // A conversão para número acontece aqui
+      image_url: imageUrl,
+    };
+
+    let error;
+    if (product) {
+      const { error: updateError } = await supabase
+        .from('products')
+        .update(productData)
+        .eq('id', product.id);
+      error = updateError;
+    } else {
+      const { error: insertError } = await supabase
+        .from('products')
+        .insert([productData]);
+      error = insertError;
+    }
+
+    if (error) {
+      toast.error('Erro ao salvar produto: ' + error.message);
+    } else {
+      toast.success(`Produto ${product ? 'atualizado' : 'criado'} com sucesso!`);
+      onClose();
+    }
+    setIsSubmitting(false);
+  };
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Gerenciar Produtos</h1>
-        <button
-          onClick={() => handleOpenModal()}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          Adicionar Produto
-        </button>
-      </div>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-2xl">
+        <h2 className="text-2xl font-bold mb-6">{product ? 'Editar Produto' : 'Adicionar Novo Produto'}</h2>
+        <form onSubmit={handleSubmit}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <div className="mb-4">
+                <label className="block text-gray-700 mb-2" htmlFor="name">Nome do Produto</label>
+                <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full px-3 py-2 border rounded-lg" required />
+              </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 mb-2" htmlFor="price">Preço</label>
+                <input id="price" type="number" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} className="w-full px-3 py-2 border rounded-lg" required />
+              </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 mb-2" htmlFor="category">Categoria</label>
+                <select 
+                  id="category" 
+                  value={categoryId} 
+                  onChange={(e) => setCategoryId(e.target.value)} 
+                  className="w-full px-3 py-2 border rounded-lg" 
+                  required
+                >
+                  {/* Removida a opção "Selecione uma categoria" para garantir que sempre haja um valor */}
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={String(cat.id)}>{cat.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            
+            <div>
+              <div className="mb-4">
+                <label className="block text-gray-700 mb-2" htmlFor="imageUrl">URL da Imagem</label>
+                <input id="imageUrl" type="text" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} className="w-full px-3 py-2 border rounded-lg" placeholder="https://exemplo.com/imagem.png" required />
+              </div>
+              {imageUrl && (
+                <div className="mb-4">
+                  <p className="block text-gray-700 mb-2 text-sm">Pré-visualização:</p>
+                  <img src={imageUrl} alt="Pré-visualização" className="w-full h-40 object-contain rounded-lg border" />
+                </div>
+               )}
+            </div>
+          </div>
 
-      <div className="flex gap-4 mb-4">
-        <div className="relative flex-grow">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl">🔍</span>
-          <input
-            type="text"
-            placeholder="Buscar por nome..."
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setPage(1);
-            }}
-            className="w-full pl-10 pr-4 py-2 border rounded-lg"
-          />
-        </div>
-        <select
-          value={selectedCategory}
-          onChange={(e) => {
-            setSelectedCategory(e.target.value);
-            setPage(1);
-          }}
-          className="border rounded-lg px-4 py-2"
-        >
-          <option value="">Todas as Categorias</option>
-          {categories.map((cat) => (
-            <option key={cat.id} value={cat.id}>
-              {cat.name}
-            </option>
-          ))}
-        </select>
-      </div>
+          <div className="mt-4">
+            <label className="block text-gray-700 mb-2" htmlFor="description">Descrição</label>
+            <textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full px-3 py-2 border rounded-lg" rows={4}></textarea>
+          </div>
 
-      <div className="bg-white shadow-md rounded-lg overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Imagem</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoria</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preço</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {products.map((product) => (
-              <tr key={product.id}>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <img src={product.image_url} alt={product.name} className="w-16 h-16 object-cover rounded" />
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{product.name}</td>
-                {/* NENHUMA MUDANÇA AQUI, A CORREÇÃO É NA BUSCA DOS DADOS */}
-                <td className="px-6 py-4 whitespace-nowrap text-gray-500">{product.categories?.name || 'N/A'}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-gray-500">R$ {product.price.toFixed(2)}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button onClick={() => handleOpenModal(product)} className="text-indigo-600 hover:text-indigo-900 mr-4">Editar</button>
-                  <button onClick={() => handleDelete(product.id)} className="text-red-600 hover:text-red-900">Excluir</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+          <div className="flex justify-end gap-4 mt-6">
+            <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400">Cancelar</button>
+            <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-300">{isSubmitting ? 'Salvando...' : 'Salvar Produto'}</button>
+          </div>
+        </form>
       </div>
-
-      <div className="flex items-center justify-between mt-4">
-        <span className="text-sm text-gray-700">
-          Página {page} de {totalPages}
-        </span>
-        <div className="flex items-center gap-2">
-          <button onClick={() => setPage(1)} disabled={page === 1} className="p-2 border rounded-lg disabled:opacity-50 text-lg">«</button>
-          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-2 border rounded-lg disabled:opacity-50 text-lg">‹</button>
-          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-2 border rounded-lg disabled:opacity-50 text-lg">›</button>
-          <button onClick={() => setPage(totalPages)} disabled={page === totalPages} className="p-2 border rounded-lg disabled:opacity-50 text-lg">»</button>
-        </div>
-      </div>
-
-      {isModalOpen && (
-        <ProductModal
-          product={selectedProduct}
-          categories={categories}
-          onClose={handleCloseModal}
-        />
-      )}
     </div>
   );
 }
