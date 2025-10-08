@@ -38,7 +38,7 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Objeto de dados SIMPLES, sem estoque
+    // Objeto de dados simples, exatamente como era antes.
     const productData = {
       name,
       description,
@@ -47,22 +47,32 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
       image_url: imageUrl,
     };
 
+    // Adicionando um console.log para ver o que está sendo enviado.
+    console.log("Tentando salvar:", productData);
+
     let error;
     if (product) {
-      const { error: updateError } = await supabase
+      const { data: updateData, error: updateError } = await supabase
         .from('products')
         .update(productData)
-        .eq('id', product.id);
+        .eq('id', product.id)
+        .select() // Pedindo para o Supabase retornar o dado salvo
+        .single();
       error = updateError;
+      console.log("Resposta do UPDATE:", { updateData, updateError });
     } else {
-      const { error: insertError } = await supabase
+      const { data: insertData, error: insertError } = await supabase
         .from('products')
-        .insert([productData]);
+        .insert([productData])
+        .select() // Pedindo para o Supabase retornar o dado salvo
+        .single();
       error = insertError;
+      console.log("Resposta do INSERT:", { insertData, insertError });
     }
 
     if (error) {
       toast.error('Erro ao salvar produto: ' + error.message);
+      console.error("Erro detalhado do Supabase:", error);
     } else {
       toast.success(`Produto ${product ? 'atualizado' : 'criado'} com sucesso!`);
       onClose();
@@ -75,6 +85,7 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
       <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-2xl">
         <h2 className="text-2xl font-bold mb-6">{product ? 'Editar Produto' : 'Adicionar Novo Produto'}</h2>
         <form onSubmit={handleSubmit}>
+          {/* O formulário é o mesmo, simples e sem estoque */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <div className="mb-4">
@@ -92,9 +103,7 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
                   {categories.map((cat) => (<option key={cat.id} value={cat.id}>{cat.name}</option>))}
                 </select>
               </div>
-              {/* Campo de quantidade foi REMOVIDO daqui */}
             </div>
-            
             <div>
               <div className="mb-4">
                 <label className="block text-gray-700 mb-2" htmlFor="imageUrl">URL da Imagem</label>
@@ -108,12 +117,10 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
                )}
             </div>
           </div>
-
           <div className="mt-4">
             <label className="block text-gray-700 mb-2" htmlFor="description">Descrição</label>
             <textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full px-3 py-2 border rounded-lg" rows={4}></textarea>
           </div>
-
           <div className="flex justify-end gap-4 mt-6">
             <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400">Cancelar</button>
             <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-300">{isSubmitting ? 'Salvando...' : 'Salvar Produto'}</button>

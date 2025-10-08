@@ -17,6 +17,7 @@ export default function Products() {
   const productsPerPage = 10;
 
   const fetchProducts = async () => {
+    console.log("Buscando produtos...");
     let query = supabase
       .from('products')
       .select('*, categories(*)', { count: 'exact' })
@@ -38,7 +39,9 @@ export default function Products() {
 
     if (error) {
       toast.error('Erro ao buscar produtos: ' + error.message);
+      console.error("Erro ao buscar produtos:", error);
     } else if (data) {
+      console.log("Produtos recebidos:", data);
       setProducts(data as Product[]);
       setTotalProducts(count || 0);
     }
@@ -134,7 +137,6 @@ export default function Products() {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoria</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preço</th>
-              {/* Coluna de estoque REMOVIDA daqui */}
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
             </tr>
           </thead>
@@ -147,7 +149,6 @@ export default function Products() {
                 <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{product.name}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-gray-500">{product.categories?.name || 'N/A'}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-gray-500">R$ {product.price.toFixed(2)}</td>
-                {/* Célula de estoque REMOVIDA daqui */}
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <button onClick={() => handleOpenModal(product)} className="text-indigo-600 hover:text-indigo-900 mr-4">Editar</button>
                   <button onClick={() => handleDelete(product.id)} className="text-red-600 hover:text-red-900">Excluir</button>
