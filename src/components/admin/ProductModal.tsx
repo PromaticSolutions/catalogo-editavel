@@ -23,7 +23,6 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
       setName(product.name);
       setDescription(product.description);
       setPrice(String(product.price));
-      // CORREÇÃO #1: Garante que o valor inicial seja uma string, mesmo se for null
       setCategoryId(String(product.category_id || ''));
       setImageUrl(product.image_url);
     } else {
@@ -39,11 +38,21 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
     e.preventDefault();
     setIsSubmitting(true);
 
+    // CORREÇÃO: Converte categoryId corretamente
+    const parsedCategoryId = categoryId ? parseInt(categoryId, 10) : null;
+    
+    // Validação adicional
+    if (!parsedCategoryId || isNaN(parsedCategoryId)) {
+      toast.error('Por favor, selecione uma categoria válida');
+      setIsSubmitting(false);
+      return;
+    }
+
     const productData = {
       name,
       description,
       price: parseFloat(price),
-      category_id: parseInt(categoryId, 10) || null,
+      category_id: parsedCategoryId,
       image_url: imageUrl,
     };
 
@@ -94,8 +103,7 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
                   className="w-full px-3 py-2 border rounded-lg"
                   required
                 >
-                  <option value="" disabled>Selecione uma categoria</option>
-                  {/* CORREÇÃO #2: Garante que o 'value' do option seja sempre uma string */}
+                  <option value="">Selecione uma categoria</option>
                   {categories && categories.map((cat) => (
                     <option key={cat.id} value={String(cat.id)}>{cat.name}</option>
                   ))}
