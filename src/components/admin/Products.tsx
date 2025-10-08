@@ -17,10 +17,10 @@ export default function Products() {
   const productsPerPage = 10;
 
   const fetchProducts = async () => {
-    console.log("Buscando produtos...");
+    // MUDANÇA SUTIL AQUI para ser mais explícito
     let query = supabase
       .from('products')
-      .select('*, categories(*)', { count: 'exact' })
+      .select('*, categories(id, name)', { count: 'exact' }) // Pede explicitamente id e name da categoria
       .order('name', { ascending: true });
 
     if (searchTerm) {
@@ -39,9 +39,7 @@ export default function Products() {
 
     if (error) {
       toast.error('Erro ao buscar produtos: ' + error.message);
-      console.error("Erro ao buscar produtos:", error);
     } else if (data) {
-      console.log("Produtos recebidos:", data);
       setProducts(data as Product[]);
       setTotalProducts(count || 0);
     }
@@ -147,6 +145,7 @@ export default function Products() {
                   <img src={product.image_url} alt={product.name} className="w-16 h-16 object-cover rounded" />
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{product.name}</td>
+                {/* NENHUMA MUDANÇA AQUI, A CORREÇÃO É NA BUSCA DOS DADOS */}
                 <td className="px-6 py-4 whitespace-nowrap text-gray-500">{product.categories?.name || 'N/A'}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-gray-500">R$ {product.price.toFixed(2)}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
