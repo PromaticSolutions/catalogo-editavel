@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, Package } from 'lucide-react';
-import { supabase } from '../../lib/supabase'; // <-- CORRIGIDO: Usando o Supabase real
-import { Product } from '../../types/Product'; // <-- CORRIGIDO: Usando o tipo Product correto
+import { supabase } from '../../lib/supabase';
+import { Product } from '../../types/Product';
 import { toast } from 'react-toastify';
 
 export default function Inventory() {
@@ -27,10 +27,9 @@ export default function Inventory() {
     loadProducts();
   }, []);
 
-  const handleStockUpdate = async (productId: number, newStock: number) => {
+  const handleStockUpdate = async (productId: string, newStock: number) => {
     if (newStock < 0) return;
 
-    // Não precisamos enviar 'updated_at', o Supabase pode fazer isso automaticamente
     const { error } = await supabase
       .from('products')
       .update({ stock_quantity: newStock })
@@ -40,7 +39,6 @@ export default function Inventory() {
       toast.error("Erro ao atualizar estoque: " + error.message);
     } else {
       toast.success("Estoque atualizado!");
-      // Atualiza o estado localmente para uma resposta mais rápida da UI
       setProducts(currentProducts =>
         currentProducts.map(p =>
           p.id === productId ? { ...p, stock_quantity: newStock } : p
@@ -49,17 +47,11 @@ export default function Inventory() {
     }
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(value);
-  };
+  const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
   const getStockStatus = (stock: number) => {
     if (stock === 0) return { label: 'Esgotado', color: 'text-red-600 bg-red-50' };
     if (stock <= 5) return { label: 'Baixo', color: 'text-orange-600 bg-orange-50' };
-    if (stock <= 20) return { label: 'Médio', color: 'text-yellow-600 bg-yellow-50' };
     return { label: 'Adequado', color: 'text-green-600 bg-green-50' };
   };
 
@@ -75,7 +67,7 @@ export default function Inventory() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="p-6 space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Inventário</h2>
         <p className="text-gray-600">Gerencie e visualize o estoque dos seus produtos.</p>
@@ -91,7 +83,6 @@ export default function Inventory() {
             <p className="text-red-700">{outOfStockProducts.length} produto(s) sem estoque.</p>
           </div>
         )}
-
         {lowStockProducts.length > 0 && (
           <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
             <div className="flex items-center gap-2 mb-2">
@@ -116,66 +107,46 @@ export default function Inventory() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {products.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center">
-                    <Package className="mx-auto h-12 w-12 text-gray-400" />
-                    <p className="mt-2 text-gray-500">Nenhum produto cadastrado</p>
-                  </td>
-                </tr>
-              ) : (
-                products.map((product) => {
-                  const status = getStockStatus(product.stock_quantity);
-                  return (
-                    <tr key={product.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="h-10 w-10 flex-shrink-0">
-                            {product.image_url ? (
-                              <img src={product.image_url} alt={product.name} className="h-10 w-10 rounded object-cover" />
-                            ) : (
-                              <div className="h-10 w-10 rounded bg-gray-200 flex items-center justify-center">
-                                <Package className="h-5 w-5 text-gray-400" />
-                              </div>
-                            )}
-                          </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">{product.name}</div>
-                            {/* Removido 'is_active' pois não existe no seu tipo Product */}
-                          </div>
+              {products.map((product) => {
+                const status = getStockStatus(product.stock_quantity);
+                return (
+                  <tr key={product.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="h-10 w-10 flex-shrink-0">
+                          <img src={product.image_url} alt={product.name} className="h-10 w-10 rounded object-cover" />
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatCurrency(product.price)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <input
-                          type="number"
-                          min="0"
-                          value={product.stock_quantity}
-                          onChange={(e) => handleStockUpdate(product.id, parseInt(e.target.value) || 0)}
-                          className="w-24 px-3 py-1 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-3 py-1 text-xs font-medium rounded-full ${status.color}`}>
-                          {status.label}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
-                        <div className="flex gap-2 justify-center">
-                          <button onClick={() => handleStockUpdate(product.id, product.stock_quantity + 10)} className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors" title="Adicionar 10 unidades">
-                            +10
-                          </button>
-                          <button onClick={() => handleStockUpdate(product.id, Math.max(0, product.stock_quantity - 1))} className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors" title="Remover 1 unidade">
-                            -1
-                          </button>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900">{product.name}</div>
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatCurrency(product.price)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <input
+                        type="number"
+                        min="0"
+                        value={product.stock_quantity}
+                        onChange={(e) => handleStockUpdate(product.id, parseInt(e.target.value) || 0)}
+                        className="w-24 px-3 py-1 border border-gray-300 rounded-lg text-center"
+                      />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-3 py-1 text-xs font-medium rounded-full ${status.color}`}>{status.label}</span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                      <div className="flex gap-2 justify-center">
+                        <button onClick={() => handleStockUpdate(product.id, product.stock_quantity + 10)} className="px-3 py-1 bg-green-600 text-white text-xs rounded" title="Adicionar 10">
+                          +10
+                        </button>
+                        <button onClick={() => handleStockUpdate(product.id, Math.max(0, product.stock_quantity - 1))} className="px-3 py-1 bg-red-600 text-white text-xs rounded" title="Remover 1">
+                          -1
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

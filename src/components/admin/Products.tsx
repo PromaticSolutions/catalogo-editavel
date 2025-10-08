@@ -60,7 +60,8 @@ export default function Products() {
     fetchProducts();
   };
 
-  const handleDelete = async (productId: number) => {
+  // A CORREÇÃO ESTÁ AQUI: productId agora é 'string'
+  const handleDelete = async (productId: string) => {
     if (!window.confirm('Tem certeza que deseja excluir este produto?')) return;
     const { error } = await supabase.from('products').delete().eq('id', productId);
     if (error) toast.error('Erro ao excluir produto: ' + error.message);
@@ -101,9 +102,8 @@ export default function Products() {
           className="border rounded-lg px-4 py-2"
         >
           <option value="">Todas as Categorias</option>
-          {/* CORRIGIDO: Padroniza o value para string */}
           {categories.map((cat) => (
-            <option key={cat.id} value={String(cat.id)}>{cat.name}</option>
+            <option key={cat.id} value={cat.id}>{cat.name}</option>
           ))}
         </select>
       </div>

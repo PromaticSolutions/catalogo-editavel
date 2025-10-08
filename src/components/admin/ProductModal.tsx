@@ -15,7 +15,7 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
     name: '',
     description: '',
     price: '',
-    categoryId: '',
+    categoryId: '', // <-- JÁ É STRING, PERFEITO
     imageUrl: '',
     stockQuantity: '0',
   });
@@ -27,9 +27,7 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
         name: product.name || '',
         description: product.description || '',
         price: String(product.price || ''),
-        // A CORREÇÃO ESTÁ AQUI:
-        // Se não houver category_id, o valor do select deve ser '', que corresponde a "Selecione uma categoria"
-        categoryId: product.category_id ? String(product.category_id) : '',
+        categoryId: product.category_id || '', // <-- JÁ É STRING, PERFEITO
         imageUrl: product.image_url || '',
         stockQuantity: String(product.stock_quantity || '0'),
       });
@@ -60,11 +58,12 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
     
     setIsSubmitting(true);
 
+    // DADOS SÃO ENVIADOS COMO STRING ONDE NECESSÁRIO
     const productData = {
       name: formData.name,
       description: formData.description,
       price: parseFloat(formData.price),
-      category_id: parseInt(formData.categoryId, 10),
+      category_id: formData.categoryId, // <-- ENVIADO COMO STRING (UUID)
       image_url: formData.imageUrl,
       stock_quantity: parseInt(formData.stockQuantity, 10) || 0,
     };
@@ -75,9 +74,10 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
         const { error: updateError } = await supabase
           .from('products')
           .update(productData)
-          .eq('id', product.id);
+          .eq('id', product.id); // <-- AGORA COMPARA UUID COM UUID
         error = updateError;
       } else {
+        // NÃO ENVIAMOS O ID, O SUPABASE GERA O UUID
         const { error: insertError } = await supabase
           .from('products')
           .insert([productData]);
@@ -104,7 +104,7 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
       <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-2xl">
         <h2 className="text-2xl font-bold mb-6">{product ? 'Editar Produto' : 'Adicionar Novo Produto'}</h2>
         <form onSubmit={handleSubmit}>
-          {/* O resto do formulário permanece o mesmo */}
+          {/* O formulário não precisa de NENHUMA mudança visual */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <div className="mb-4">
@@ -119,7 +119,7 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
                 <label className="block text-gray-700 mb-2">Categoria</label>
                 <select name="categoryId" value={formData.categoryId} onChange={handleChange} className="w-full px-3 py-2 border rounded-lg" required>
                   <option value="" disabled>Selecione uma categoria</option>
-                  {categories.map((cat) => (<option key={cat.id} value={String(cat.id)}>{cat.name}</option>))}
+                  {categories.map((cat) => (<option key={cat.id} value={cat.id}>{cat.name}</option>))}
                 </select>
               </div>
               <div className="mb-4">
@@ -137,7 +137,7 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
                   <p className="text-sm text-gray-600 mb-2">Pré-visualização:</p>
                   <img src={formData.imageUrl} alt="Pré-visualização" className="w-full h-40 object-contain rounded-lg border" />
                 </div>
-               )}
+                )}
             </div>
           </div>
           <div className="mt-4">

@@ -1,12 +1,12 @@
 import { Category } from './Category';
 
 export interface Product {
-  id: number;
+  id: string; // <-- MUDADO PARA STRING (UUID)
   name: string;
   description: string;
   price: number;
   image_url: string;
-  category_id: number;
-  stock_quantity: number; // <-- CORRIGIDO
+  category_id: string; // <-- MUDADO PARA STRING (UUID)
+  stock_quantity: number;
   categories?: Category;
 }
