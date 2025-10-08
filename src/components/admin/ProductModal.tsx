@@ -65,47 +65,76 @@ export default function ProductModal({ product, onClose, onSaveSuccess }: Produc
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setErrorMessage('');
+  // DENTRO DO SEU ProductModal.tsx
 
-    let imageUrl = product ? product.image_url : '';
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setLoading(true);
+  setErrorMessage('');
 
-    if (imageFile) {
-      setUploading(true);
-      const fileName = `${Date.now()}_${imageFile.name.replace(/\s/g, '_')}`;
-      const { data: uploadData, error: uploadError } = await supabase.storage.from('product-images').upload(fileName, imageFile);
-      if (uploadError) {
-        setErrorMessage(`Erro no upload: ${uploadError.message}`);
-        setLoading(false); setUploading(false); return;
-      }
-      const { data: publicUrlData } = supabase.storage.from('product-images').getPublicUrl(uploadData.path);
-      imageUrl = publicUrlData.publicUrl;
+  let imageUrl = product ? product.image_url : '';
+
+  if (imageFile) {
+    setUploading(true);
+
+    // --- CORREÇÃO 1: NOME DO ARQUIVO MAIS SEGURO ---
+    const fileExt = imageFile.name.split('.').pop();
+    const fileName = `${Date.now()}.${fileExt}`;
+    
+    const { data: uploadData, error: uploadError } = await supabase
+      .storage
+      .from('product-images')
+      .upload(fileName, imageFile, {
+        cacheControl: '3600',
+        upsert: true, // --- CORREÇÃO 2: MUDAR PARA TRUE ---
+      });
+
+    if (uploadError) {
+      setErrorMessage(`Erro no upload da imagem: ${uploadError.message}`);
+      setLoading(false);
       setUploading(false);
+      return;
     }
 
-    const dataToSave = {
-      name: formData.name,
-      description: formData.description,
-      price: parseFloat(formData.price) || 0,
-      image_url: imageUrl,
-      stock_quantity: parseInt(formData.stock_quantity) || 0,
-      is_active: formData.is_active,
-      category_id: formData.category_id || null,
-    };
+    const { data: publicUrlData } = supabase
+      .storage
+      .from('product-images')
+      .getPublicUrl(uploadData.path);
+    
+    imageUrl = publicUrlData.publicUrl;
+    setUploading(false);
+  }
 
-    if (product) {
-      const { error } = await supabase.from('products').update(dataToSave).eq('id', product.id);
-      if (error) { setErrorMessage(`Falha ao atualizar: ${error.message}`); } 
-      else { onSaveSuccess(); onClose(); }
-    } else {
-      const { error } = await supabase.from('products').insert(dataToSave);
-      if (error) { setErrorMessage(`Falha ao criar: ${error.message}`); } 
-      else { onSaveSuccess(); onClose(); }
-    }
-    setLoading(false);
+  const dataToSave = {
+    name: formData.name,
+    description: formData.description,
+    price: parseFloat(formData.price) || 0,
+    image_url: imageUrl,
+    stock_quantity: parseInt(formData.stock_quantity) || 0,
+    is_active: formData.is_active,
+    category_id: formData.category_id || null,
   };
+
+  if (product) {
+    const { error } = await supabase.from('products').update(dataToSave).eq('id', product.id);
+    if (error) {
+      setErrorMessage(`Falha ao atualizar: ${error.message}`);
+    } else {
+      onSaveSuccess();
+      onClose();
+    }
+  } else {
+    const { error } = await supabase.from('products').insert(dataToSave);
+    if (error) {
+      setErrorMessage(`Falha ao criar: ${error.message}`);
+    } else {
+      onSaveSuccess();
+      onClose();
+    }
+  }
+
+  setLoading(false);
+};
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
