@@ -1,41 +1,51 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, Package } from 'lucide-react';
-import { localDB as supabase, Product } from '../../lib/localStorage';
+import { supabase } from '../../lib/supabase'; // <-- CORRIGIDO: Usando o Supabase real
+import { Product } from '../../types/Product'; // <-- CORRIGIDO: Usando o tipo Product correto
+import { toast } from 'react-toastify';
 
 export default function Inventory() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadProducts();
-  }, []);
-
   const loadProducts = async () => {
     setLoading(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('products')
       .select('*')
       .order('stock_quantity', { ascending: true });
 
-    if (data) {
+    if (error) {
+      toast.error("Erro ao carregar o inventário: " + error.message);
+    } else if (data) {
       setProducts(data);
     }
     setLoading(false);
   };
 
-  const handleStockUpdate = async (productId: string, newStock: number) => {
+  useEffect(() => {
+    loadProducts();
+  }, []);
+
+  const handleStockUpdate = async (productId: number, newStock: number) => {
     if (newStock < 0) return;
 
+    // Não precisamos enviar 'updated_at', o Supabase pode fazer isso automaticamente
     const { error } = await supabase
       .from('products')
-      .update({
-        stock_quantity: newStock,
-        updated_at: new Date().toISOString()
-      })
+      .update({ stock_quantity: newStock })
       .eq('id', productId);
 
-    if (!error) {
-      loadProducts();
+    if (error) {
+      toast.error("Erro ao atualizar estoque: " + error.message);
+    } else {
+      toast.success("Estoque atualizado!");
+      // Atualiza o estado localmente para uma resposta mais rápida da UI
+      setProducts(currentProducts =>
+        currentProducts.map(p =>
+          p.id === productId ? { ...p, stock_quantity: newStock } : p
+        )
+      );
     }
   };
 
@@ -53,7 +63,7 @@ export default function Inventory() {
     return { label: 'Adequado', color: 'text-green-600 bg-green-50' };
   };
 
-  const lowStockProducts = products.filter(p => p.stock_quantity <= 5);
+  const lowStockProducts = products.filter(p => p.stock_quantity > 0 && p.stock_quantity <= 5);
   const outOfStockProducts = products.filter(p => p.stock_quantity === 0);
 
   if (loading) {
@@ -65,10 +75,10 @@ export default function Inventory() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Estoque</h2>
-        <p className="text-gray-600">Gerencie o inventário de produtos</p>
+        <h2 className="text-2xl font-bold text-gray-900">Inventário</h2>
+        <p className="text-gray-600">Gerencie e visualize o estoque dos seus produtos.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -78,7 +88,7 @@ export default function Inventory() {
               <AlertTriangle className="h-5 w-5 text-red-600" />
               <h3 className="font-semibold text-red-900">Produtos Esgotados</h3>
             </div>
-            <p className="text-red-700">{outOfStockProducts.length} produto(s) sem estoque</p>
+            <p className="text-red-700">{outOfStockProducts.length} produto(s) sem estoque.</p>
           </div>
         )}
 
@@ -88,7 +98,7 @@ export default function Inventory() {
               <Package className="h-5 w-5 text-orange-600" />
               <h3 className="font-semibold text-orange-900">Estoque Baixo</h3>
             </div>
-            <p className="text-orange-700">{lowStockProducts.length} produto(s) com estoque baixo</p>
+            <p className="text-orange-700">{lowStockProducts.length} produto(s) com estoque baixo.</p>
           </div>
         )}
       </div>
@@ -98,21 +108,11 @@ export default function Inventory() {
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Produto
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Preço
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Estoque Atual
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Ações
-                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Produto</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preço</th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Estoque Atual</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Ações Rápidas</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -132,11 +132,7 @@ export default function Inventory() {
                         <div className="flex items-center">
                           <div className="h-10 w-10 flex-shrink-0">
                             {product.image_url ? (
-                              <img
-                                src={product.image_url}
-                                alt={product.name}
-                                className="h-10 w-10 rounded object-cover"
-                              />
+                              <img src={product.image_url} alt={product.name} className="h-10 w-10 rounded object-cover" />
                             ) : (
                               <div className="h-10 w-10 rounded bg-gray-200 flex items-center justify-center">
                                 <Package className="h-5 w-5 text-gray-400" />
@@ -145,20 +141,20 @@ export default function Inventory() {
                           </div>
                           <div className="ml-4">
                             <div className="text-sm font-medium text-gray-900">{product.name}</div>
-                            <div className="text-xs text-gray-500">{product.is_active ? 'Ativo' : 'Inativo'}</div>
+                            {/* Removido 'is_active' pois não existe no seu tipo Product */}
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {formatCurrency(product.price)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
                         <input
                           type="number"
                           min="0"
                           value={product.stock_quantity}
                           onChange={(e) => handleStockUpdate(product.id, parseInt(e.target.value) || 0)}
-                          className="w-24 px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-24 px-3 py-1 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -166,18 +162,12 @@ export default function Inventory() {
                           {status.label}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleStockUpdate(product.id, product.stock_quantity + 10)}
-                            className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
-                          >
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                        <div className="flex gap-2 justify-center">
+                          <button onClick={() => handleStockUpdate(product.id, product.stock_quantity + 10)} className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors" title="Adicionar 10 unidades">
                             +10
                           </button>
-                          <button
-                            onClick={() => handleStockUpdate(product.id, Math.max(0, product.stock_quantity - 1))}
-                            className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
-                          >
+                          <button onClick={() => handleStockUpdate(product.id, Math.max(0, product.stock_quantity - 1))} className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors" title="Remover 1 unidade">
                             -1
                           </button>
                         </div>

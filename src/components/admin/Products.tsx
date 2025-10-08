@@ -101,6 +101,7 @@ export default function Products() {
           className="border rounded-lg px-4 py-2"
         >
           <option value="">Todas as Categorias</option>
+          {/* CORRIGIDO: Padroniza o value para string */}
           {categories.map((cat) => (
             <option key={cat.id} value={String(cat.id)}>{cat.name}</option>
           ))}

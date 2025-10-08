@@ -7,6 +7,6 @@ export interface Product {
   price: number;
   image_url: string;
   category_id: number;
-  stock_quantity: number; // <-- ADICIONADO. Isso corrige o erro 'does not exist'.
+  stock_quantity: number; // <-- CORRIGIDO
   categories?: Category;
 }

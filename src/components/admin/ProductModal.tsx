@@ -41,36 +41,24 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Objeto de dados com a sua lógica de geração de ID
     const productData = {
-      // =================================================================
-      // A SUA SOLUÇÃO GENIAL IMPLEMENTADA AQUI
-      id: product ? product.id : Date.now(), 
-      // =================================================================
+      id: product ? product.id : Date.now(), // <-- CORRIGIDO: Gera ID para novos produtos
       name,
       description,
       price: parseFloat(price),
       category_id: parseInt(categoryId, 10),
       image_url: imageUrl,
-      stock_quantity: parseInt(stockQuantity, 10) || 0,
+      stock_quantity: parseInt(stockQuantity, 10) || 0, // <-- CORRIGIDO: Envia o estoque
     };
 
     try {
       let error;
       if (product) {
-        // Ao atualizar, não precisamos (e não devemos) enviar o ID no corpo.
-        // O ID é usado apenas na cláusula .eq() para encontrar o registro.
         const { id, ...updateData } = productData;
-        const { error: updateError } = await supabase
-          .from('products')
-          .update(updateData)
-          .eq('id', id);
+        const { error: updateError } = await supabase.from('products').update(updateData).eq('id', id);
         error = updateError;
       } else {
-        // Ao inserir, enviamos o objeto completo, incluindo o ID gerado.
-        const { error: insertError } = await supabase
-          .from('products')
-          .insert([productData]);
+        const { error: insertError } = await supabase.from('products').insert([productData]);
         error = insertError;
       }
 
@@ -94,7 +82,6 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
       <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-2xl">
         <h2 className="text-2xl font-bold mb-6">{product ? 'Editar Produto' : 'Adicionar Novo Produto'}</h2>
         <form onSubmit={handleSubmit}>
-          {/* O resto do seu formulário permanece exatamente igual, já com o campo de estoque */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <div className="mb-4">
