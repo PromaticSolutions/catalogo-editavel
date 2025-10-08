@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase'; // <-- CAMINHO CORRIGIDO
-import { Product } from '../../types/Product'; // <-- CAMINHO CORRIGIDO (assumindo que 'types' existe)
-import { Category } from '../../types/Category'; // <-- CAMINHO CORRIGIDO (assumindo que 'types' existe)
+import { supabase } from '../../lib/supabase';
+import { Product } from '../../types/Product';
+import { Category } from '../../types/Category';
 import ProductModal from './ProductModal';
 import { toast } from 'react-toastify';
 import {
@@ -11,9 +11,6 @@ import {
   CircleChevronRight,
   ChevronsRight,
 } from 'lucide-react';
-
-// O resto do código permanece o mesmo...
-// (Cole o código completo abaixo)
 
 export default function Products() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -144,6 +141,7 @@ export default function Products() {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoria</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preço</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estoque</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
             </tr>
           </thead>
@@ -156,6 +154,13 @@ export default function Products() {
                 <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{product.name}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-gray-500">{product.categories?.name || 'N/A'}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-gray-500">R$ {product.price.toFixed(2)}</td>
+                <td className="px-6 py-4 whitespace-nowrap font-medium">
+                  {product.quantity > 0 ? (
+                    <span className="text-green-600">{product.quantity}</span>
+                  ) : (
+                    <span className="text-red-600">Esgotado</span>
+                  )}
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <button onClick={() => handleOpenModal(product)} className="text-indigo-600 hover:text-indigo-900 mr-4">Editar</button>
                   <button onClick={() => handleDelete(product.id)} className="text-red-600 hover:text-red-900">Excluir</button>

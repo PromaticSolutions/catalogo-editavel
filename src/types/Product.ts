@@ -8,5 +8,6 @@ export interface Product {
   price: number;
   image_url: string;
   category_id: number;
+  quantity: number;
   categories?: Category; // O '?' indica que é opcional
 }
