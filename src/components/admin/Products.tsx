@@ -4,13 +4,6 @@ import { Product } from '../../types/Product';
 import { Category } from '../../types/Category';
 import ProductModal from './ProductModal';
 import { toast } from 'react-toastify';
-import {
-  Search,
-  CircleChevronLeft,
-  ChevronsLeft,
-  CircleChevronRight,
-  ChevronsRight,
-} from 'lucide-react';
 
 export default function Products() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -104,7 +97,7 @@ export default function Products() {
 
       <div className="flex gap-4 mb-4">
         <div className="relative flex-grow">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl">🔍</span>
           <input
             type="text"
             placeholder="Buscar por nome..."
@@ -176,10 +169,10 @@ export default function Products() {
           Página {page} de {totalPages}
         </span>
         <div className="flex items-center gap-2">
-          <button onClick={() => setPage(1)} disabled={page === 1} className="p-2 border rounded-lg disabled:opacity-50"><ChevronsLeft size={20} /></button>
-          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-2 border rounded-lg disabled:opacity-50"><CircleChevronLeft size={20} /></button>
-          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-2 border rounded-lg disabled:opacity-50"><CircleChevronRight size={20} /></button>
-          <button onClick={() => setPage(totalPages)} disabled={page === totalPages} className="p-2 border rounded-lg disabled:opacity-50"><ChevronsRight size={20} /></button>
+          <button onClick={() => setPage(1)} disabled={page === 1} className="p-2 border rounded-lg disabled:opacity-50 text-lg">«</button>
+          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-2 border rounded-lg disabled:opacity-50 text-lg">‹</button>
+          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-2 border rounded-lg disabled:opacity-50 text-lg">›</button>
+          <button onClick={() => setPage(totalPages)} disabled={page === totalPages} className="p-2 border rounded-lg disabled:opacity-50 text-lg">»</button>
         </div>
       </div>
 
