@@ -1,4 +1,3 @@
-// src/types/Product.ts
 import { Category } from './Category';
 
 export interface Product {
@@ -8,6 +7,6 @@ export interface Product {
   price: number;
   image_url: string;
   category_id: number;
-  quantity: number;
-  categories?: Category; // O '?' indica que é opcional
+  stock_quantity: number; // CORRIGIDO
+  categories?: Category;
 }

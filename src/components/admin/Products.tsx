@@ -148,8 +148,8 @@ export default function Products() {
                 <td className="px-6 py-4 whitespace-nowrap text-gray-500">{product.categories?.name || 'N/A'}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-gray-500">R$ {product.price.toFixed(2)}</td>
                 <td className="px-6 py-4 whitespace-nowrap font-medium">
-                  {product.quantity > 0 ? (
-                    <span className="text-green-600">{product.quantity}</span>
+                  {product.stock_quantity > 0 ? ( // CORRIGIDO
+                    <span className="text-green-600">{product.stock_quantity}</span> // CORRIGIDO
                   ) : (
                     <span className="text-red-600">Esgotado</span>
                   )}
