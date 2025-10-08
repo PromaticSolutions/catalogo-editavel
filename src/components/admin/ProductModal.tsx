@@ -16,6 +16,7 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
   const [price, setPrice] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [stockQuantity, setStockQuantity] = useState('0');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -25,12 +26,14 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
       setPrice(String(product.price || ''));
       setCategoryId(String(product.category_id || ''));
       setImageUrl(product.image_url || '');
+      setStockQuantity(String(product.stock_quantity || '0'));
     } else {
       setName('');
       setDescription('');
       setPrice('');
       setCategoryId('');
       setImageUrl('');
+      setStockQuantity('0');
     }
   }, [product]);
 
@@ -38,25 +41,33 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
     e.preventDefault();
     setIsSubmitting(true);
 
-    // A validação foi removida daqui porque o 'required' no select já a faz.
-
+    // Objeto de dados com a sua lógica de geração de ID
     const productData = {
+      // =================================================================
+      // A SUA SOLUÇÃO GENIAL IMPLEMENTADA AQUI
+      id: product ? product.id : Date.now(), 
+      // =================================================================
       name,
       description,
       price: parseFloat(price),
-      category_id: parseInt(categoryId, 10), // A conversão para número acontece aqui, de forma segura.
+      category_id: parseInt(categoryId, 10),
       image_url: imageUrl,
+      stock_quantity: parseInt(stockQuantity, 10) || 0,
     };
 
     try {
       let error;
       if (product) {
+        // Ao atualizar, não precisamos (e não devemos) enviar o ID no corpo.
+        // O ID é usado apenas na cláusula .eq() para encontrar o registro.
+        const { id, ...updateData } = productData;
         const { error: updateError } = await supabase
           .from('products')
-          .update(productData)
-          .eq('id', product.id);
+          .update(updateData)
+          .eq('id', id);
         error = updateError;
       } else {
+        // Ao inserir, enviamos o objeto completo, incluindo o ID gerado.
         const { error: insertError } = await supabase
           .from('products')
           .insert([productData]);
@@ -83,6 +94,7 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
       <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-2xl">
         <h2 className="text-2xl font-bold mb-6">{product ? 'Editar Produto' : 'Adicionar Novo Produto'}</h2>
         <form onSubmit={handleSubmit}>
+          {/* O resto do seu formulário permanece exatamente igual, já com o campo de estoque */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <div className="mb-4">
@@ -95,20 +107,16 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
               </div>
               <div className="mb-4">
                 <label className="block text-gray-700 mb-2">Categoria</label>
-                <select
-                  value={categoryId}
-                  onChange={(e) => setCategoryId(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  required // Este 'required' faz a validação para nós.
-                >
+                <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="w-full px-3 py-2 border rounded-lg" required>
                   <option value="" disabled>Selecione uma categoria</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={String(cat.id)}>{cat.name}</option>
-                  ))}
+                  {categories.map((cat) => (<option key={cat.id} value={String(cat.id)}>{cat.name}</option>))}
                 </select>
               </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 mb-2">Quantidade em Estoque</label>
+                <input type="number" min="0" value={stockQuantity} onChange={(e) => setStockQuantity(e.target.value)} className="w-full px-3 py-2 border rounded-lg" required />
+              </div>
             </div>
-
             <div>
               <div className="mb-4">
                 <label className="block text-gray-700 mb-2">URL da Imagem</label>
@@ -122,12 +130,10 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
                )}
             </div>
           </div>
-
           <div className="mt-4">
             <label className="block text-gray-700 mb-2">Descrição</label>
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} className="w-full px-3 py-2 border rounded-lg" rows={4}></textarea>
           </div>
-
           <div className="flex justify-end gap-4 mt-6">
             <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400">Cancelar</button>
             <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-300">{isSubmitting ? 'Salvando...' : 'Salvar Produto'}</button>
