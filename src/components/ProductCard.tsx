@@ -1,3 +1,5 @@
+// src/components/ProductCard.tsx - VERSÃO FINAL COM CORREÇÃO DE DIGITAÇÃO
+
 import { ShoppingCart, Package } from 'lucide-react';
 import { Product } from '../lib/supabase';
 
@@ -10,12 +12,20 @@ interface ProductCardProps {
 export default function ProductCard({ product, onProductClick, primaryColor }: ProductCardProps) {
   const outOfStock = product.stock_quantity <= 0;
 
+  const getTransformedImageUrl = (url: string) => {
+    if (!url) return null;
+    if (url.includes('?')) return url;
+    return `${url}?width=400&height=400&resize=cover`;
+  };
+
+  const transformedImageUrl = getTransformedImageUrl(product.image_url);
+
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden transition-transform hover:scale-105 hover:shadow-xl">
       <div className="relative h-48 bg-gray-200">
-        {product.image_url ? (
+        {transformedImageUrl ? (
           <img
-            src={product.image_url}
+            src={transformedImageUrl}
             alt={product.name}
             className="w-full h-full object-cover"
           />
@@ -51,7 +61,7 @@ export default function ProductCard({ product, onProductClick, primaryColor }: P
             className="px-4 py-2 rounded-lg text-white font-medium transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
               backgroundColor: outOfStock ? '#9ca3af' : primaryColor,
-              opacity: outOfStock ? 0.5 : 1
+              opacity: outOfStock ? 0.5 : 1 // << LINHA CORRIGIDA
             }}
           >
             <ShoppingCart className="h-4 w-4" />

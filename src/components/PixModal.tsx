@@ -1,6 +1,6 @@
-// src/components/PixModal.tsx - VERSÃO FINAL (OPÇÃO 1: QR CODE DA CHAVE PURA)
+// src/components/PixModal.tsx - VERSÃO FINAL COM LIMPEZA DE IMPORT
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react'; // << useEffect removido
 import { X } from 'lucide-react';
 import QRCode from 'qrcode';
 import { supabase, Product, SiteSettings } from '../lib/supabase';
@@ -21,7 +21,6 @@ export default function PixModal({ product, settings, onClose }: PixModalProps) 
 
   const totalAmount = product.price * quantity;
 
-  // Função simplificada para gerar o QR Code da chave
   const generateSimpleQRCode = async (pixKey: string) => {
     try {
       const qrCodeDataUrl = await QRCode.toDataURL(pixKey, { width: 280, margin: 2 });
@@ -39,7 +38,6 @@ export default function PixModal({ product, settings, onClose }: PixModalProps) 
     }
     setLoading(true);
 
-    // Gera o QR Code simples e salva o pedido
     await generateSimpleQRCode(settings.pix_key);
 
     const { error } = await supabase.from('sales').insert({
