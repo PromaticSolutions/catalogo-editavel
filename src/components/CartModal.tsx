@@ -1,14 +1,19 @@
-// CORREÇÃO: Removido o import do ícone 'Minus'
 import { X, Trash2, Plus } from 'lucide-react';
 import { useCart } from '../lib/useCart';
 import { useState } from 'react';
-import { supabase, SiteSettings } from '../lib/supabase';
+import { supabase, SiteSettings, Product } from '../lib/supabase'; // Importa Product
 import { toast } from 'react-toastify';
 import QRCode from 'qrcode';
 
 interface CartModalProps {
   settings: SiteSettings;
   onClose: () => void;
+}
+
+// NOVO TIPO: Para guardar os dados do pedido finalizado
+interface FinalizedOrder {
+  items: (Product & { quantity: number })[];
+  total: number;
 }
 
 export default function CartModal({ settings, onClose }: CartModalProps) {
@@ -18,6 +23,9 @@ export default function CartModal({ settings, onClose }: CartModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderCreated, setOrderCreated] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState('');
+  
+  // NOVO ESTADO: para armazenar os detalhes do pedido após a finalização
+  const [finalizedOrder, setFinalizedOrder] = useState<FinalizedOrder | null>(null);
 
   const handleFinalizeOrder = async () => {
     if (!settings.pix_key) {
@@ -26,14 +34,18 @@ export default function CartModal({ settings, onClose }: CartModalProps) {
     }
     setIsSubmitting(true);
 
-    const saleDescription = cart.map(item => `${item.quantity}x ${item.name}`).join(', ');
+    // CAPTURA OS DADOS ANTES DE QUALQUER COISA
+    const orderData: FinalizedOrder = { items: cart, total: totalPrice };
+    setFinalizedOrder(orderData);
+
+    const saleDescription = orderData.items.map(item => `${item.quantity}x ${item.name}`).join(', ');
 
     const { data: newSale, error } = await supabase
       .from('sales')
       .insert({
         product_name: saleDescription,
-        quantity: cart.reduce((acc, item) => acc + item.quantity, 0),
-        total_amount: totalPrice,
+        quantity: orderData.items.reduce((acc, item) => acc + item.quantity, 0),
+        total_amount: orderData.total,
         customer_name: customerName || null,
         customer_phone: customerPhone || null,
         status: 'pending',
@@ -56,7 +68,7 @@ export default function CartModal({ settings, onClose }: CartModalProps) {
         setQrCodeUrl(qrCodeDataUrl);
         setOrderCreated(true);
         toast.success("Pedido criado! Agora realize o pagamento.");
-        clearCart();
+        clearCart(); // Limpa o carrinho SÓ DEPOIS que tudo deu certo
       } catch (qrError) {
         console.error('Erro ao gerar QR Code:', qrError);
         toast.error('Pedido criado, mas houve um erro ao gerar o QR Code.');
@@ -66,7 +78,10 @@ export default function CartModal({ settings, onClose }: CartModalProps) {
     setIsSubmitting(false);
   };
   
-  const whatsappMessage = encodeURIComponent(`Olá! Tenho interesse no pedido com os seguintes itens: ${cart.map(item => `${item.quantity}x ${item.name}`).join(', ')} (Total: R$ ${totalPrice.toFixed(2)}). Segue o comprovante de pagamento.`);
+  // MENSAGEM DO WHATSAPP: Agora usa os dados do 'finalizedOrder'
+  const whatsappMessage = finalizedOrder 
+    ? encodeURIComponent(`Olá! Tenho interesse no pedido com os seguintes itens: ${finalizedOrder.items.map(item => `${item.quantity}x ${item.name}`).join(', ')} (Total: R$ ${finalizedOrder.total.toFixed(2)}). Segue o comprovante de pagamento.`)
+    : '';
   const whatsappLink = `https://wa.me/5511963730082?text=${whatsappMessage}`;
 
   return (
@@ -96,7 +111,6 @@ export default function CartModal({ settings, onClose }: CartModalProps) {
                       <p className="text-sm text-gray-500">R$ {item.price.toFixed(2)}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      {/* CORREÇÃO: Ícone problemático removido e substituído por texto */}
                       <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 hover:bg-gray-300 font-bold">-</button>
                       <span>{item.quantity}</span>
                       <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="p-1 rounded-full bg-gray-200 hover:bg-gray-300"><Plus size={18} /></button>
@@ -132,10 +146,11 @@ export default function CartModal({ settings, onClose }: CartModalProps) {
             <div className="bg-green-50 border border-green-200 rounded-lg p-3">
               <p className="text-green-800 font-medium">✓ Pedido criado! Pague o valor abaixo.</p>
             </div>
+            {/* VALOR A PAGAR: Agora usa os dados do 'finalizedOrder' */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-sm text-blue-800">
                 <strong>Valor total a pagar:</strong>
-                <span className="text-xl font-bold ml-2">R$ {totalPrice.toFixed(2)}</span>
+                <span className="text-xl font-bold ml-2">R$ {finalizedOrder?.total.toFixed(2)}</span>
               </p>
             </div>
             {qrCodeUrl && (
