@@ -1,10 +1,10 @@
-// src/components/Catalog.tsx - VERSÃO FINAL COM ÍCONE DE BUSCA CORRETO
-
 import { useEffect, useState } from 'react';
-import { ShoppingBag, Package as SearchIcon } from 'lucide-react'; // << ÍCONE CORRIGIDO
+import { ShoppingBag, Package as SearchIcon } from 'lucide-react';
 import { supabase, Product, SiteSettings } from '../lib/supabase';
+import { Sale } from '../types/Sale'; // Importa o tipo Sale
 import ProductCard from './ProductCard';
 import PixModal from './PixModal';
+import { toast } from 'react-toastify'; // Importa o toast para feedback
 
 interface Category {
   id: string;
@@ -15,7 +15,9 @@ export default function Catalog() {
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  
+  // ESTADO MODIFICADO: Agora vamos guardar a venda, não o produto
+  const [activeSale, setActiveSale] = useState<Sale | null>(null);
   const [showPixModal, setShowPixModal] = useState(false);
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -72,9 +74,39 @@ export default function Catalog() {
     return () => { clearTimeout(handler); };
   }, [searchTerm, selectedCategory]);
 
-  const handleProductClick = (product: Product) => {
-    if (product.stock_quantity > 0) {
-      setSelectedProduct(product);
+  // <<<<<<<<<<<<<<<<<<<<<<< A MÁGICA ACONTECE AQUI >>>>>>>>>>>>>>>>>>>>>>>>>
+  const handleProductClick = async (product: Product) => {
+    if (product.stock_quantity <= 0) {
+      toast.error("Produto esgotado!");
+      return;
+    }
+
+    // 1. Criar o objeto da nova venda
+    const newSaleData = {
+      product_id: product.id,
+      product_name: product.name,
+      quantity: 1, // Assumindo a compra de 1 unidade por clique
+      unit_price: product.price,
+      total_amount: product.price, // Total para 1 unidade
+      status: 'pending' as const, // Define o status inicial
+    };
+
+    // 2. Inserir a venda no banco de dados
+    const { data: insertedSale, error } = await supabase
+      .from('sales')
+      .insert(newSaleData)
+      .select()
+      .single(); // .select().single() retorna o objeto recém-criado
+
+    if (error) {
+      toast.error("Não foi possível iniciar a compra. Tente novamente.");
+      console.error("Erro ao criar venda:", error);
+      return;
+    }
+
+    if (insertedSale) {
+      // 3. Se a venda foi criada com sucesso, abre o modal do Pix
+      setActiveSale(insertedSale);
       setShowPixModal(true);
     }
   };
@@ -103,7 +135,7 @@ export default function Catalog() {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             />
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" /> {/* << ÍCONE CORRIGIDO */}
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
           </div>
           <select
             value={selectedCategory || ''}
@@ -138,8 +170,9 @@ export default function Catalog() {
         )}
       </main>
 
-      {showPixModal && selectedProduct && settings && (
-        <PixModal product={selectedProduct} settings={settings} onClose={() => { setShowPixModal(false); setSelectedProduct(null); }} />
+      {/* MODAL MODIFICADO: Agora usa a 'activeSale' */}
+      {showPixModal && activeSale && settings && (
+        <PixModal sale={activeSale} settings={settings} onClose={() => { setShowPixModal(false); setActiveSale(null); }} />
       )}
     </div>
   );
