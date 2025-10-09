@@ -1,7 +1,8 @@
-// CORREÇÃO: Removido o import não utilizado 'ShoppingCart'
-import { Package, Plus } from 'lucide-react';
+// CORREÇÃO: Adicionado 'Check' para o feedback e 'useState' para controlar o estado
+import { Package, Plus, Check } from 'lucide-react';
 import { Product } from '../lib/supabase';
 import { toast } from 'react-toastify';
+import { useState } from 'react';
 
 interface ProductCardProps {
   product: Product;
@@ -11,6 +12,8 @@ interface ProductCardProps {
 
 export default function ProductCard({ product, onAddToCart, primaryColor }: ProductCardProps) {
   const outOfStock = product.stock_quantity <= 0;
+  // NOVO ESTADO: para controlar se o item foi recém-adicionado
+  const [isAdded, setIsAdded] = useState(false);
 
   const getTransformedImageUrl = (url: string) => {
     if (!url) return null;
@@ -20,9 +23,20 @@ export default function ProductCard({ product, onAddToCart, primaryColor }: Prod
 
   const transformedImageUrl = getTransformedImageUrl(product.image_url);
 
+  // FUNÇÃO ATUALIZADA: agora com a lógica de feedback
   const handleAddToCartClick = () => {
+    if (isAdded) return; // Evita múltiplos cliques rápidos
+
     onAddToCart();
     toast.success(`${product.name} adicionado ao carrinho!`);
+
+    // Ativa o estado "adicionado"
+    setIsAdded(true);
+
+    // Após 1.5 segundos, volta ao estado normal
+    setTimeout(() => {
+      setIsAdded(false);
+    }, 1500);
   };
 
   return (
@@ -64,14 +78,25 @@ export default function ProductCard({ product, onAddToCart, primaryColor }: Prod
           <span className="text-2xl font-bold" style={{ color: primaryColor }}>
             R$ {product.price.toFixed(2)}
           </span>
+          
+          {/* BOTÃO ATUALIZADO: agora ele muda de aparência */}
           <button
             onClick={handleAddToCartClick}
-            disabled={outOfStock}
-            className="px-4 py-2 rounded-lg text-white font-medium transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ backgroundColor: outOfStock ? '#9ca3af' : primaryColor }}
+            disabled={outOfStock || isAdded} // Desabilita se estiver esgotado OU se foi recém-adicionado
+            className={`px-4 py-2 rounded-lg text-white font-medium transition-all flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed ${isAdded ? 'bg-green-500' : ''}`}
+            style={{ backgroundColor: isAdded ? '#10B981' : (outOfStock ? '#9ca3af' : primaryColor) }}
           >
-            <Plus className="h-4 w-4" />
-            Adicionar
+            {isAdded ? (
+              <>
+                <Check className="h-4 w-4" />
+                Adicionado!
+              </>
+            ) : (
+              <>
+                <Plus className="h-4 w-4" />
+                Adicionar
+              </>
+            )}
           </button>
         </div>
 
