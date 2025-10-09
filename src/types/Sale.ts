@@ -5,8 +5,8 @@ export interface Sale {
   quantity: number;
   unit_price: number;
   total_amount: number;
-  customer_name: string | null;
-  customer_phone: string | null;
+  customer_name: string | null; // <-- CORRIGIDO PARA ACEITAR NULL
+  customer_phone: string | null; // <-- CORRIGIDO PARA ACEITAR NULL
   status: 'pending' | 'paid' | 'completed' | 'cancelled';
   pix_code: string | null;
   created_at: string;

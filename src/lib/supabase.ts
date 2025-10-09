@@ -1,5 +1,3 @@
-// src/lib/supabase.ts - VERSÃO FINAL COM category_id
-
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -28,7 +26,7 @@ export interface Product {
   is_active: boolean;
   created_at: string;
   updated_at: string;
-  category_id: string | null; // << CORREÇÃO APLICADA AQUI
+  category_id: string | null;
 }
 
 export interface Sale {
@@ -38,10 +36,10 @@ export interface Sale {
   quantity: number;
   unit_price: number;
   total_amount: number;
-  customer_name: string;
-  customer_phone: string;
+  customer_name: string | null; // <-- CORREÇÃO APLICADA AQUI
+  customer_phone: string | null; // <-- CORREÇÃO APLICADA AQUI
   status: 'pending' | 'paid' | 'completed' | 'cancelled';
-  pix_code: string;
+  pix_code: string | null; // <-- BÔNUS: Adicionado | null para consistência
   created_at: string;
 }
 
