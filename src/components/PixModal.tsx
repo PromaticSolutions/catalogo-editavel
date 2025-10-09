@@ -1,9 +1,8 @@
-// src/components/PixModal.tsx - VERSÃO FINAL COM LIMPEZA DE IMPORT
-
-import { useState } from 'react'; // << useEffect removido
+import { useState } from 'react';
 import { X } from 'lucide-react';
 import QRCode from 'qrcode';
 import { supabase, Product, SiteSettings } from '../lib/supabase';
+import { toast } from 'react-toastify'; // Importando o toast
 
 interface PixModalProps {
   product: Product;
@@ -21,41 +20,61 @@ export default function PixModal({ product, settings, onClose }: PixModalProps) 
 
   const totalAmount = product.price * quantity;
 
+  // Esta função gera um QR Code SIMPLES, apenas com a chave.
+  // O usuário precisará digitar o valor.
   const generateSimpleQRCode = async (pixKey: string) => {
     try {
       const qrCodeDataUrl = await QRCode.toDataURL(pixKey, { width: 280, margin: 2 });
       setQrCodeUrl(qrCodeDataUrl);
     } catch (error) {
       console.error('Erro ao gerar QR Code simples:', error);
-      alert('Não foi possível gerar o QR Code. Verifique a chave PIX configurada.');
+      toast.error('Não foi possível gerar o QR Code.');
     }
   };
 
   const handleCreateOrder = async () => {
     if (!settings.pix_key) {
-      alert('Chave PIX não configurada.');
+      toast.error('A chave PIX não está configurada pelo administrador.');
       return;
     }
     setLoading(true);
 
-    await generateSimpleQRCode(settings.pix_key);
+    // 1. Tenta inserir a venda no banco de dados PRIMEIRO.
+    const { data: newSale, error } = await supabase
+      .from('sales')
+      .insert({
+        product_id: product.id,
+        product_name: product.name,
+        quantity: quantity,
+        unit_price: product.price,
+        total_amount: totalAmount,
+        customer_name: customerName || null, // Garante que campos opcionais vazios sejam nulos
+        customer_phone: customerPhone || null,
+        status: 'pending',
+      })
+      .select()
+      .single(); // Retorna a venda recém-criada
 
-    const { error } = await supabase.from('sales').insert({
-      product_id: product.id, product_name: product.name, quantity,
-      unit_price: product.price, total_amount: totalAmount, customer_name: customerName,
-      customer_phone: customerPhone, status: 'pending',
-    });
-
-    if (!error) {
-      setOrderCreated(true);
-    } else {
-      alert('Erro ao criar pedido. Tente novamente.');
+    if (error) {
+      console.error("Erro ao criar venda no Supabase:", error);
+      toast.error('Erro ao criar seu pedido. Tente novamente.');
+      setLoading(false);
+      return; // Para a execução se a venda falhar
     }
+
+    // 2. Se a venda foi criada com sucesso, gera o QR Code.
+    if (newSale) {
+      await generateSimpleQRCode(settings.pix_key);
+      setOrderCreated(true);
+      toast.success("Pedido criado! Agora realize o pagamento.");
+    }
+    
     setLoading(false);
   };
 
+  // Link do WhatsApp com mensagem pré-preenchida
   const whatsappMessage = encodeURIComponent(`Olá! Tenho interesse no pedido: ${product.name} (Qtd: ${quantity}, Total: R$ ${totalAmount.toFixed(2)}). Segue o comprovante de pagamento.`);
-  const whatsappLink = `https://wa.me/${settings.pix_key.replace(/\D/g, '' )}?text=${whatsappMessage}`;
+  const whatsappLink = `https://wa.me/${settings.pix_key.replace(/\D/g, ''  )}?text=${whatsappMessage}`;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -66,6 +85,7 @@ export default function PixModal({ product, settings, onClose }: PixModalProps) 
         <h2 className="text-2xl font-bold text-gray-900 mb-4">Finalizar Compra</h2>
 
         {!orderCreated ? (
+          // ETAPA 1: Formulário de Checkout
           <div className="space-y-4">
             <div className="mb-4">
               <h3 className="font-semibold text-lg">{product.name}</h3>
@@ -90,10 +110,11 @@ export default function PixModal({ product, settings, onClose }: PixModalProps) 
               </div>
             </div>
             <button onClick={handleCreateOrder} disabled={loading} className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50">
-              {loading ? 'Gerando PIX...' : 'Gerar QR Code PIX'}
+              {loading ? 'Criando pedido...' : 'Gerar QR Code PIX'}
             </button>
           </div>
         ) : (
+          // ETAPA 2: Tela de Pagamento
           <div className="space-y-4 text-center">
             <div className="bg-green-50 border border-green-200 rounded-lg p-3">
               <p className="text-green-800 font-medium">✓ Pedido criado! Pague o valor abaixo.</p>

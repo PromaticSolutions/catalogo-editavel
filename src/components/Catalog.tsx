@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react';
 import { ShoppingBag, Package as SearchIcon } from 'lucide-react';
 import { supabase, Product, SiteSettings } from '../lib/supabase';
-import { Sale } from '../types/Sale'; // Importa o tipo Sale
 import ProductCard from './ProductCard';
 import PixModal from './PixModal';
-import { toast } from 'react-toastify'; // Importa o toast para feedback
 
 interface Category {
   id: string;
@@ -16,8 +14,8 @@ export default function Catalog() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // ESTADO MODIFICADO: Agora vamos guardar a venda, não o produto
-  const [activeSale, setActiveSale] = useState<Sale | null>(null);
+  // VOLTANDO AO ESTADO ORIGINAL: Guardamos o produto selecionado
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showPixModal, setShowPixModal] = useState(false);
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -74,39 +72,10 @@ export default function Catalog() {
     return () => { clearTimeout(handler); };
   }, [searchTerm, selectedCategory]);
 
-  // <<<<<<<<<<<<<<<<<<<<<<< A MÁGICA ACONTECE AQUI >>>>>>>>>>>>>>>>>>>>>>>>>
-  const handleProductClick = async (product: Product) => {
-    if (product.stock_quantity <= 0) {
-      toast.error("Produto esgotado!");
-      return;
-    }
-
-    // 1. Criar o objeto da nova venda
-    const newSaleData = {
-      product_id: product.id,
-      product_name: product.name,
-      quantity: 1, // Assumindo a compra de 1 unidade por clique
-      unit_price: product.price,
-      total_amount: product.price, // Total para 1 unidade
-      status: 'pending' as const, // Define o status inicial
-    };
-
-    // 2. Inserir a venda no banco de dados
-    const { data: insertedSale, error } = await supabase
-      .from('sales')
-      .insert(newSaleData)
-      .select()
-      .single(); // .select().single() retorna o objeto recém-criado
-
-    if (error) {
-      toast.error("Não foi possível iniciar a compra. Tente novamente.");
-      console.error("Erro ao criar venda:", error);
-      return;
-    }
-
-    if (insertedSale) {
-      // 3. Se a venda foi criada com sucesso, abre o modal do Pix
-      setActiveSale(insertedSale);
+  // LÓGICA ORIGINAL RESTAURADA: Apenas abre o modal
+  const handleProductClick = (product: Product) => {
+    if (product.stock_quantity > 0) {
+      setSelectedProduct(product);
       setShowPixModal(true);
     }
   };
@@ -170,9 +139,9 @@ export default function Catalog() {
         )}
       </main>
 
-      {/* MODAL MODIFICADO: Agora usa a 'activeSale' */}
-      {showPixModal && activeSale && settings && (
-        <PixModal sale={activeSale} settings={settings} onClose={() => { setShowPixModal(false); setActiveSale(null); }} />
+      {/* CHAMADA ORIGINAL RESTAURADA: Passa 'product', não 'sale' */}
+      {showPixModal && selectedProduct && settings && (
+        <PixModal product={selectedProduct} settings={settings} onClose={() => { setShowPixModal(false); setSelectedProduct(null); }} />
       )}
     </div>
   );
