@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-// CORREÇÃO: Importa do Supabase real
-import { supabase, Sale } from '../../lib/supabase'; 
+import { supabase } from '../../lib/supabase'; 
+import { Sale } from '../../types/Sale';
 import { Eye } from 'lucide-react';
 import SaleDetailsModal from './SaleDetailsModal';
 import { toast } from 'react-toastify';
@@ -12,16 +12,15 @@ export default function Sales() {
   const [showModal, setShowModal] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('all');
 
-  // A função de carregar vendas agora depende do filtro para funcionar
-  const loadSales = async (currentFilter: string) => {
+  const loadSales = async () => {
     setLoading(true);
     let query = supabase
       .from('sales')
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (currentFilter !== 'all') {
-      query = query.eq('status', currentFilter);
+    if (filterStatus !== 'all') {
+      query = query.eq('status', filterStatus);
     }
 
     const { data, error } = await query;
@@ -36,26 +35,26 @@ export default function Sales() {
 
   // Efeito que recarrega os dados quando o filtro muda
   useEffect(() => {
-    loadSales(filterStatus);
+    loadSales();
   }, [filterStatus]);
 
-  // ATUALIZAÇÃO EM TEMPO REAL: Ouve por mudanças na tabela 'sales'
+  // ATUALIZAÇÃO EM TEMPO REAL
   useEffect(() => {
     const salesChannel = supabase.channel('sales_realtime_channel')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'sales' }, 
         (payload) => {
           console.log('Mudança nas vendas detectada!', payload);
-          // Recarrega a lista de vendas mantendo o filtro atual
-          loadSales(filterStatus); 
+          loadSales(); 
         }
       )
       .subscribe();
 
-    // Limpa a inscrição quando o componente é desmontado
     return () => {
       supabase.removeChannel(salesChannel);
     };
-  }, [filterStatus]); // Adiciona filterStatus aqui para que o listener sempre tenha o valor mais recente
+  // A CORREÇÃO ESTÁ AQUI: Adicionamos 'filterStatus' como dependência
+  // Isso garante que a função 'loadSales' dentro do listener sempre tenha o valor mais recente do filtro.
+  }, [filterStatus]); 
 
   const handleStatusChange = async (saleId: string, newStatus: string) => {
     const { error } = await supabase
@@ -67,8 +66,7 @@ export default function Sales() {
       toast.error("Erro ao atualizar status.");
     } else {
       toast.success("Status atualizado com sucesso!");
-      // A atualização em tempo real já vai cuidar de recarregar a lista.
-      // Não precisamos mais do loadSales() aqui.
+      // O Realtime vai cuidar do resto.
     }
   };
 
@@ -104,10 +102,7 @@ export default function Sales() {
     return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
 
-  // O filtro agora é feito na query, então usamos 'sales' diretamente
-  const filteredSales = sales;
-
-  if (loading && filteredSales.length === 0) {
+  if (loading && sales.length === 0) {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -145,12 +140,12 @@ export default function Sales() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {loading && <tr><td colSpan={7} className="text-center py-4">Atualizando...</td></tr>}
-              {!loading && filteredSales.length === 0 ? (
+              {!loading && sales.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-4 text-center text-gray-500">Nenhuma venda encontrada</td>
                 </tr>
               ) : (
-                filteredSales.map((sale) => (
+                sales.map((sale) => (
                   <tr key={sale.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{sale.product_name}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
