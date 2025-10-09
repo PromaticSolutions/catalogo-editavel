@@ -12,7 +12,9 @@ export default function Sales() {
   const [showModal, setShowModal] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('all');
 
+  // A função de carregar agora é independente, ela sempre lê o estado mais recente
   const loadSales = async () => {
+    // A função agora lê 'filterStatus' diretamente do estado no momento em que é chamada
     setLoading(true);
     let query = supabase
       .from('sales')
@@ -33,18 +35,47 @@ export default function Sales() {
     setLoading(false);
   };
 
-  // Efeito que recarrega os dados quando o filtro muda
+  // Efeito que recarrega os dados SOMENTE quando o filtro muda
   useEffect(() => {
     loadSales();
   }, [filterStatus]);
 
-  // ATUALIZAÇÃO EM TEMPO REAL
+  // Efeito do Realtime, separado e com a correção
   useEffect(() => {
-    const salesChannel = supabase.channel('sales_realtime_channel')
+    const salesChannel = supabase.channel('sales_realtime_listener')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'sales' }, 
         (payload) => {
-          console.log('Mudança nas vendas detectada!', payload);
-          loadSales(); 
+          console.log('Mudança detectada pelo Realtime!', payload);
+          
+          // A CORREÇÃO: Em vez de chamar uma função "velha",
+          // nós atualizamos o estado de forma funcional.
+          // Isso garante que a lista seja atualizada corretamente,
+          // independentemente do filtro.
+          setSales(currentSales => {
+            const newOrUpdatedItem = payload.new as Sale;
+            const oldItem = payload.old as { id: string };
+
+            // Se for um DELETE
+            if (payload.eventType === 'DELETE') {
+              return currentSales.filter(s => s.id !== oldItem.id);
+            }
+            
+            // Se for um UPDATE
+            if (payload.eventType === 'UPDATE') {
+              return currentSales.map(s => s.id === newOrUpdatedItem.id ? newOrUpdatedItem : s);
+            }
+
+            // Se for um INSERT
+            if (payload.eventType === 'INSERT') {
+              // Adiciona o novo item no topo da lista, se já não estiver lá
+              if (currentSales.some(s => s.id === newOrUpdatedItem.id)) {
+                return currentSales;
+              }
+              return [newOrUpdatedItem, ...currentSales];
+            }
+
+            return currentSales;
+          });
         }
       )
       .subscribe();
@@ -52,9 +83,7 @@ export default function Sales() {
     return () => {
       supabase.removeChannel(salesChannel);
     };
-  // A CORREÇÃO ESTÁ AQUI: Adicionamos 'filterStatus' como dependência
-  // Isso garante que a função 'loadSales' dentro do listener sempre tenha o valor mais recente do filtro.
-  }, [filterStatus]); 
+  }, []); // <-- Este useEffect NUNCA deve ter dependências para não se registrar múltiplas vezes
 
   const handleStatusChange = async (saleId: string, newStatus: string) => {
     const { error } = await supabase
@@ -70,6 +99,8 @@ export default function Sales() {
     }
   };
 
+  // O resto do seu componente permanece EXATAMENTE o mesmo.
+  // ... (código de formatação, JSX, etc.)
   const handleViewDetails = (sale: Sale) => {
     setSelectedSale(sale);
     setShowModal(true);
@@ -101,6 +132,12 @@ export default function Sales() {
     };
     return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
+
+  // Agora o filtro é feito no lado do cliente, para que o Realtime funcione perfeitamente
+  const filteredSales = sales.filter(sale => {
+    if (filterStatus === 'all') return true;
+    return sale.status === filterStatus;
+  });
 
   if (loading && sales.length === 0) {
     return (
@@ -140,12 +177,12 @@ export default function Sales() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {loading && <tr><td colSpan={7} className="text-center py-4">Atualizando...</td></tr>}
-              {!loading && sales.length === 0 ? (
+              {!loading && filteredSales.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-4 text-center text-gray-500">Nenhuma venda encontrada</td>
                 </tr>
               ) : (
-                sales.map((sale) => (
+                filteredSales.map((sale) => (
                   <tr key={sale.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{sale.product_name}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
