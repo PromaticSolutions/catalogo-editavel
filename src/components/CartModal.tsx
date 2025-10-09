@@ -71,20 +71,23 @@ export default function CartModal({ settings, onClose }: CartModalProps) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-lg w-full p-6 relative max-h-[90vh] flex flex-col">
-        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
-          <X className="h-6 w-6" />
-        </button>
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">
-          {orderCreated ? 'Finalize o Pagamento' : 'Seu Carrinho'}
-        </h2>
+      <div className="bg-white rounded-lg max-w-lg w-full relative max-h-[90vh] flex flex-col">
+        
+        <div className="p-6 border-b flex-shrink-0">
+          <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+            <X className="h-6 w-6" />
+          </button>
+          <h2 className="text-2xl font-bold text-gray-900">
+            {orderCreated ? 'Finalize o Pagamento' : 'Seu Carrinho'}
+          </h2>
+        </div>
 
         {!orderCreated ? (
           <>
-            <div className="flex-grow overflow-y-auto pr-2 -mr-2 space-y-4">
+            <div className="flex-grow overflow-y-auto p-6 space-y-4">
               {cart.length === 0 ? (
                 <p className="text-gray-500 text-center py-8">Seu carrinho está vazio.</p>
-                ) : (
+               ) : (
                 cart.map(item => (
                   <div key={item.id} className="flex items-center gap-4">
                     <img src={item.image_url} alt={item.name} className="h-16 w-16 rounded object-cover" />
@@ -93,7 +96,7 @@ export default function CartModal({ settings, onClose }: CartModalProps) {
                       <p className="text-sm text-gray-500">R$ {item.price.toFixed(2)}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      {/* CORREÇÃO: Ícone substituído por texto simples */}
+                      {/* CORREÇÃO: Ícone problemático removido e substituído por texto */}
                       <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 hover:bg-gray-300 font-bold">-</button>
                       <span>{item.quantity}</span>
                       <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="p-1 rounded-full bg-gray-200 hover:bg-gray-300"><Plus size={18} /></button>
@@ -105,7 +108,7 @@ export default function CartModal({ settings, onClose }: CartModalProps) {
             </div>
 
             {cart.length > 0 && (
-              <div className="mt-6 border-t pt-4 space-y-4">
+              <div className="p-6 border-t flex-shrink-0 space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Seu nome (opcional)</label>
                   <input type="text" value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Digite seu nome" />
@@ -125,7 +128,7 @@ export default function CartModal({ settings, onClose }: CartModalProps) {
             )}
           </>
         ) : (
-          <div className="space-y-4 text-center">
+          <div className="flex-grow overflow-y-auto p-6 space-y-4 text-center">
             <div className="bg-green-50 border border-green-200 rounded-lg p-3">
               <p className="text-green-800 font-medium">✓ Pedido criado! Pague o valor abaixo.</p>
             </div>
