@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { ShoppingBag, Package as SearchIcon } from 'lucide-react';
 import { supabase, Product, SiteSettings } from '../lib/supabase';
+import { useCart } from '../lib/useCart';
 import ProductCard from './ProductCard';
-import PixModal from './PixModal';
+import CartModal from './CartModal';
 
 interface Category {
   id: string;
@@ -13,11 +14,8 @@ export default function Catalog() {
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  
-  // VOLTANDO AO ESTADO ORIGINAL: Guardamos o produto selecionado
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [showPixModal, setShowPixModal] = useState(false);
-  
+  const { addToCart, totalItems } = useCart();
+  const [showCartModal, setShowCartModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -72,24 +70,28 @@ export default function Catalog() {
     return () => { clearTimeout(handler); };
   }, [searchTerm, selectedCategory]);
 
-  // LÓGICA ORIGINAL RESTAURADA: Apenas abre o modal
-  const handleProductClick = (product: Product) => {
-    if (product.stock_quantity > 0) {
-      setSelectedProduct(product);
-      setShowPixModal(true);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pb-12">
-      <header className="bg-white shadow-md">
-        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-4">
-            {settings?.logo_url && <img src={settings.logo_url} alt={settings.company_name ?? 'Logo'} className="h-16 w-16 object-contain" />}
-            <div>
-              <h1 className="text-3xl font-bold" style={{ color: settings?.primary_color || '#2563eb' }}>{settings?.company_name || 'Catálogo Online'}</h1>
-              <p className="text-gray-600 mt-1">{settings?.welcome_message}</p>
+      <header className="bg-white shadow-md sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              {settings?.logo_url && <img src={settings.logo_url} alt={settings.company_name ?? 'Logo'} className="h-12 w-12 object-contain" />}
+              <div>
+                <h1 className="text-2xl font-bold" style={{ color: settings?.primary_color || '#2563eb' }}>{settings?.company_name || 'Catálogo Online'}</h1>
+                <p className="text-gray-600 text-sm mt-1">{settings?.welcome_message}</p>
+              </div>
             </div>
+            
+            <button onClick={() => setShowCartModal(true)} className="relative p-2 rounded-full hover:bg-gray-100">
+              <ShoppingBag className="h-7 w-7 text-gray-600" />
+              {totalItems > 0 && (
+                // CORREÇÃO: Removido o 'block' redundante
+                <span className="absolute top-0 right-0 h-5 w-5 rounded-full text-xs font-medium text-white flex items-center justify-center" style={{ backgroundColor: settings?.primary_color || '#2563eb' }}>
+                  {totalItems}
+                </span>
+              )}
+            </button>
           </div>
         </div>
       </header>
@@ -133,15 +135,19 @@ export default function Catalog() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {products.map((product) => (
-              <ProductCard key={product.id} product={product} onProductClick={handleProductClick} primaryColor={settings?.primary_color || '#2563eb'} />
+              <ProductCard 
+                key={product.id} 
+                product={product} 
+                onAddToCart={() => addToCart(product)} 
+                primaryColor={settings?.primary_color || '#2563eb'}
+              />
             ))}
           </div>
         )}
       </main>
 
-      {/* CHAMADA ORIGINAL RESTAURADA: Passa 'product', não 'sale' */}
-      {showPixModal && selectedProduct && settings && (
-        <PixModal product={selectedProduct} settings={settings} onClose={() => { setShowPixModal(false); setSelectedProduct(null); }} />
+      {showCartModal && settings && (
+        <CartModal settings={settings} onClose={() => setShowCartModal(false)} />
       )}
     </div>
   );

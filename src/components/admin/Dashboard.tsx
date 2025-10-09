@@ -1,60 +1,70 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Product } from '../../types/Product'; 
-import { Sale } from '../../types/Sale';
+// CORREÇÃO: Imports não utilizados foram removidos
+// import { Product } from '../../types/Product';
+// import { Sale } from '../../types/Sale';
 import { toast } from 'react-toastify';
 
-// ... (resto do código é o mesmo)
 export default function Dashboard() {
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [pendingSales, setPendingSales] = useState(0);
-  const [completedSales, setCompletedSales] = useState(0);
   const [productCount, setProductCount] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
-      // Fetch Sales Data
-      const { data: salesData, error: salesError } = await supabase.from('sales').select('total_amount, status');
-      if (salesError) {
-        toast.error("Erro ao buscar dados de vendas.");
-      } else if (salesData) {
-        const revenue = salesData.reduce((acc, sale) => sale.status === 'completed' ? acc + sale.total_amount : acc, 0);
-        const pending = salesData.filter(sale => sale.status === 'pending').length;
-        const completed = salesData.filter(sale => sale.status === 'completed').length;
-        setTotalRevenue(revenue);
-        setPendingSales(pending);
-        setCompletedSales(completed);
+      // Busca receita total de vendas concluídas
+      const { data: revenueData, error: revenueError } = await supabase
+        .from('sales')
+        .select('total_amount')
+        .eq('status', 'completed');
+      
+      if (revenueData) {
+        const total = revenueData.reduce((acc, sale) => acc + sale.total_amount, 0);
+        setTotalRevenue(total);
+      } else if (revenueError) {
+        toast.error("Erro ao buscar receita.");
       }
 
-      // Fetch Products Count
-      const { count, error: productsError } = await supabase.from('products').select('*', { count: 'exact', head: true });
-      if (productsError) {
+      // Busca contagem de vendas pendentes
+      const { count: pendingCount, error: pendingError } = await supabase
+        .from('sales')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
+
+      if (pendingCount !== null) {
+        setPendingSales(pendingCount);
+      } else if (pendingError) {
+        toast.error("Erro ao buscar vendas pendentes.");
+      }
+
+      // Busca contagem de produtos
+      const { count: productsCount, error: productsError } = await supabase
+        .from('products')
+        .select('*', { count: 'exact', head: true });
+
+      if (productsCount !== null) {
+        setProductCount(productsCount);
+      } else if (productsError) {
         toast.error("Erro ao buscar contagem de produtos.");
-      } else {
-        setProductCount(count || 0);
       }
     };
 
     fetchData();
   }, []);
 
-  const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-
   return (
     <div className="p-6">
       <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-gray-500 text-sm font-medium">Receita Total</h2>
-          <p className="text-3xl font-bold text-gray-900">{formatCurrency(totalRevenue)}</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-gray-500 text-sm font-medium">Vendas Concluídas</h2>
-          <p className="text-3xl font-bold text-gray-900">{completedSales}</p>
+          <h2 className="text-gray-500 text-sm font-medium">Receita Total (Concluído)</h2>
+          <p className="text-3xl font-bold text-green-600">
+            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalRevenue)}
+          </p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h2 className="text-gray-500 text-sm font-medium">Vendas Pendentes</h2>
-          <p className="text-3xl font-bold text-gray-900">{pendingSales}</p>
+          <p className="text-3xl font-bold text-yellow-600">{pendingSales}</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h2 className="text-gray-500 text-sm font-medium">Produtos Cadastrados</h2>
