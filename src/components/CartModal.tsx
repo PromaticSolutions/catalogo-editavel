@@ -80,7 +80,10 @@ export default function CartModal({ settings, onClose }: CartModalProps) {
   
   // MENSAGEM DO WHATSAPP: Agora usa os dados do 'finalizedOrder'
   const whatsappMessage = finalizedOrder 
-    ? encodeURIComponent(`Olá! Tenho interesse no pedido com os seguintes itens: ${finalizedOrder.items.map(item => `${item.quantity}x ${item.name}`).join(', ')} (Total: R$ ${finalizedOrder.total.toFixed(2)}). Segue o comprovante de pagamento.`)
+    ? encodeURIComponent(`Olá! Acabei de comprar os seguintes itens:
+    ${finalizedOrder.items.map(item => `${item.quantity}x ${item.name}`).join(', ')} (Total: R$ ${finalizedOrder.total.toFixed(2)}). 
+    
+    Segue o comprovante de pagamento.`)
     : '';
   const whatsappLink = `https://wa.me/5511934476935?text=${whatsappMessage}`;
 
