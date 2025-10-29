@@ -74,7 +74,7 @@ export default function PixModal({ product, settings, onClose }: PixModalProps) 
 
   // Link do WhatsApp com mensagem pré-preenchida
   const whatsappMessage = encodeURIComponent(`Olá! Tenho interesse no pedido: ${product.name} (Qtd: ${quantity}, Total: R$ ${totalAmount.toFixed(2)}). Segue o comprovante de pagamento.`);
-  const whatsappLink = `https://wa.me/5511963730082?text=${whatsappMessage}`;
+  const whatsappLink = `https://wa.me/5511995442526?text=${whatsappMessage}`;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
