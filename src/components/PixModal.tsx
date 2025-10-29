@@ -74,7 +74,7 @@ export default function PixModal({ product, settings, onClose }: PixModalProps) 
 
   // Link do WhatsApp com mensagem pré-preenchida
   // Comentário para forçar atualização do build
-
+  //forçar atualização_v2
 
 
   
