@@ -1,3 +1,5 @@
+// src/components/admin/Products.tsx - VERSÃO MODIFICADA POR MANUS
+
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Product } from '../../types/Product';
@@ -16,14 +18,21 @@ export default function Products() {
   const [totalProducts, setTotalProducts] = useState(0);
   const productsPerPage = 10;
 
+  // --- 1. LÓGICA DE BUSCA MELHORADA ---
   const fetchProducts = async () => {
     let query = supabase
       .from('products')
       .select('*, categories(name)', { count: 'exact' })
       .order('name', { ascending: true });
 
-    if (searchTerm) query = query.ilike('name', `%${searchTerm}%`);
-    if (selectedCategory) query = query.eq('category_id', selectedCategory);
+    // Agora a busca funciona para NOME ou REFERÊNCIA
+    if (searchTerm) {
+      query = query.or(`name.ilike.%${searchTerm}%,referencia.ilike.%${searchTerm}%`);
+    }
+    
+    if (selectedCategory) {
+      query = query.eq('category_id', selectedCategory);
+    }
 
     const from = (page - 1) * productsPerPage;
     const to = from + productsPerPage - 1;
@@ -31,8 +40,10 @@ export default function Products() {
 
     const { data, error, count } = await query;
 
-    if (error) toast.error('Erro ao buscar produtos: ' + error.message);
-    else if (data) {
+    if (error) {
+      toast.error('Erro ao buscar produtos: ' + error.message);
+      console.error(error); // Adicionado para mais detalhes no console
+    } else if (data) {
       setProducts(data as Product[]);
       setTotalProducts(count || 0);
     }
@@ -60,7 +71,6 @@ export default function Products() {
     fetchProducts();
   };
 
-  // A CORREÇÃO ESTÁ AQUI: productId agora é 'string'
   const handleDelete = async (productId: string) => {
     if (!window.confirm('Tem certeza que deseja excluir este produto?')) return;
     const { error } = await supabase.from('products').delete().eq('id', productId);
@@ -88,9 +98,10 @@ export default function Products() {
       <div className="flex gap-4 mb-4">
         <div className="relative flex-grow">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl">🔍</span>
+          {/* --- 2. PLACEHOLDER DA BUSCA ATUALIZADO --- */}
           <input
             type="text"
-            placeholder="Buscar por nome..."
+            placeholder="Buscar por nome ou referência..."
             value={searchTerm}
             onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
             className="w-full pl-10 pr-4 py-2 border rounded-lg"
@@ -114,6 +125,8 @@ export default function Products() {
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Imagem</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
+              {/* --- 3. NOVA COLUNA 'REFERÊNCIA' ADICIONADA --- */}
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Referência</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoria</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preço</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estoque</th>
@@ -127,6 +140,8 @@ export default function Products() {
                   <img src={product.image_url} alt={product.name} className="w-16 h-16 object-cover rounded" />
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{product.name}</td>
+                {/* --- 4. DADO DA 'REFERÊNCIA' EXIBIDO NA TABELA --- */}
+                <td className="px-6 py-4 whitespace-nowrap text-gray-500">{product.referencia || 'N/A'}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-gray-500">{product.categories?.name || 'N/A'}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-gray-500">R$ {product.price.toFixed(2)}</td>
                 <td className="px-6 py-4 whitespace-nowrap font-medium">

@@ -1,7 +1,7 @@
-// src/components/admin/AdminPanel.tsx - VERSÃO COM ÍCONE CORRETO
+// src/components/admin/AdminPanel.tsx - VERSÃO COM ÍCONE GARANTIDO
 
 import { useState } from 'react';
-// Adicionamos o ícone 'Package' e o renomeamos para 'CategoryIcon'
+// --- Usando um ícone que já existe para evitar erros ---
 import { LayoutDashboard, Package, ShoppingCart, Warehouse, Palette, LogOut, Menu, X, Package as CategoryIcon } from 'lucide-react';
 import { adminLogout } from '../../lib/auth';
 import Dashboard from './Dashboard';
@@ -10,6 +10,7 @@ import Sales from './Sales';
 import Inventory from './Inventory';
 import Styling from './Styling';
 import Categories from './Categories';
+import Attributes from './Attributes';
 
 interface AdminPanelProps {
   onLogout: () => void;
@@ -29,7 +30,8 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
     { id: 'sales', label: 'Vendas', icon: ShoppingCart },
     { id: 'inventory', label: 'Estoque', icon: Warehouse },
     { id: 'products', label: 'Produtos', icon: Package },
-    { id: 'categories', label: 'Categorias', icon: CategoryIcon }, // << ÍCONE CORRIGIDO
+    { id: 'categories', label: 'Categorias', icon: CategoryIcon },
+    { id: 'attributes', label: 'Filtros', icon: Package }, // <-- SOLUÇÃO: Usando o ícone 'Package' que já existe
     { id: 'styling', label: 'Estilização', icon: Palette },
   ];
 
@@ -45,6 +47,8 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
         return <Inventory />;
       case 'categories':
         return <Categories />;
+      case 'attributes':
+        return <Attributes />;
       case 'styling':
         return <Styling />;
       default:
@@ -52,7 +56,7 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
     }
   };
 
-  // O resto do seu JSX continua o mesmo...
+  // O resto do JSX continua o mesmo...
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <aside
