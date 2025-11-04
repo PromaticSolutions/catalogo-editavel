@@ -1,4 +1,4 @@
-// src/components/CartModal.tsx - VERSÃO FINAL COM ROMANEIO PROFISSIONAL
+// src/components/CartModal.tsx - VERSÃO COM CORREÇÃO FINAL DO ROMANEIO
 
 import { X, Trash2, Plus } from 'lucide-react';
 import { useCart } from '../lib/useCart';
@@ -28,25 +28,20 @@ export default function CartModal({ settings, onClose }: CartModalProps) {
 
   const isPixActive = settings.ativar_pix === true;
 
-  // --- 1. NOVA FUNÇÃO PARA GERAR O ROMANEIO PROFISSIONAL ---
+  // Função que gera o romaneio profissional (revisada)
   const generateOrderSummary = (orderData: FinalizedOrder): string => {
     const itemsSummary = orderData.items.map(item => {
-      // Formata cada item individualmente
       return `
 *Ref:* ${item.referencia || 'N/A'}
 *Produto:* ${item.name}
 *Quantidade:* ${item.quantity}
-*Valor:* R$ ${item.price.toFixed(2)}
+*Valor Unitário:* R$ ${item.price.toFixed(2)}
 --------------------`;
-    }).join(''); // Junta todos os itens formatados
+    }).join('');
 
-    // Monta a mensagem final
-    return `Olá! Segue o meu pedido:
+    return `*--- RESUMO DO PEDIDO ---*${itemsSummary}
 
-*--- RESUMO DO PEDIDO ---*${itemsSummary}
-
-*VALOR TOTAL: R$ ${orderData.total.toFixed(2)}*
-`;
+*VALOR TOTAL: R$ ${orderData.total.toFixed(2)}*`;
   };
 
   const registerSaleInSupabase = async (orderData: FinalizedOrder) => {
@@ -102,9 +97,10 @@ export default function CartModal({ settings, onClose }: CartModalProps) {
         toast.success("Pedido registrado! Enviando para o WhatsApp...");
         clearCart();
         
-        // --- 2. USAR A NOVA FUNÇÃO PARA GERAR A MENSAGEM DO PEDIDO ---
+        // --- CORREÇÃO APLICADA AQUI ---
+        // Agora usa a função correta para gerar o romaneio.
         const orderSummary = generateOrderSummary(orderData);
-        const finalMessage = `${orderSummary}\nAguardo a confirmação. Obrigado!`;
+        const finalMessage = `Olá! Gostaria de fazer o seguinte pedido:\n\n${orderSummary}\n\nAguardo a confirmação. Obrigado!`;
         const whatsappLink = `https://wa.me/5511995442526?text=${encodeURIComponent(finalMessage )}`;
         
         window.open(whatsappLink, '_blank');
@@ -115,12 +111,13 @@ export default function CartModal({ settings, onClose }: CartModalProps) {
     setIsSubmitting(false);
   };
   
-  // --- 3. USAR A NOVA FUNÇÃO PARA GERAR A MENSAGEM DE COMPROVANTE ---
+  // Mensagem de comprovante também corrigida para usar o romaneio
   const whatsappProofMessage = finalizedOrder 
-    ? `${generateOrderSummary(finalizedOrder)}\n*Segue o comprovante de pagamento.*`
+    ? `Olá! Fiz o pagamento do pedido abaixo e estou enviando o comprovante.\n\n${generateOrderSummary(finalizedOrder)}`
     : '';
   const whatsappProofLink = `https://wa.me/5511995442526?text=${encodeURIComponent(whatsappProofMessage )}`;
 
+  // O resto do JSX continua o mesmo...
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg max-w-lg w-full relative max-h-[90vh] flex flex-col">
