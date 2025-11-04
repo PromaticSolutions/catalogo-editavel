@@ -1,4 +1,4 @@
-// src/components/admin/Styling.tsx - VERSÃO COMPLETA E CORRIGIDA
+// src/components/admin/Styling.tsx - VERSÃO MODIFICADA POR MANUS
 
 import { useEffect, useState } from 'react';
 import { Palette, Save } from 'lucide-react';
@@ -6,6 +6,8 @@ import { supabase, SiteSettings } from '../../lib/supabase'; // Verifique o cami
 
 export default function Styling() {
   const [settings, setSettings] = useState<SiteSettings | null>(null);
+  
+  // --- 1. MODIFICAÇÃO: Adicionar 'ativar_pix' ao estado do formulário ---
   const [formData, setFormData] = useState({
     company_name: '',
     logo_url: '',
@@ -13,7 +15,9 @@ export default function Styling() {
     pix_key: '',
     primary_color: '#2563eb',
     secondary_color: '#1e40af',
+    ativar_pix: true, // Adicionado o novo campo com valor padrão 'true'
   });
+
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
 
@@ -32,6 +36,7 @@ export default function Styling() {
       setSaveMessage(`Erro ao carregar: ${error.message}`);
     } else if (data) {
       setSettings(data);
+      // --- 2. MODIFICAÇÃO: Carregar o valor de 'ativar_pix' do Supabase ---
       setFormData({
         company_name: data.company_name,
         logo_url: data.logo_url,
@@ -39,8 +44,16 @@ export default function Styling() {
         pix_key: data.pix_key,
         primary_color: data.primary_color,
         secondary_color: data.secondary_color,
+        // Garantimos que o valor seja booleano (true/false)
+        ativar_pix: data.ativar_pix === true, 
       });
     }
+  };
+
+  // --- 3. MODIFICAÇÃO: Criar uma função para lidar com a mudança do seletor ---
+  // Isso evita bugs com o tipo do valor (string vs booleano)
+  const handleAtivarPixChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setFormData({ ...formData, ativar_pix: e.target.value === '1' });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -48,6 +61,7 @@ export default function Styling() {
     setSaving(true);
     setSaveMessage('');
 
+    // O 'formData' já contém o 'ativar_pix' e será salvo automaticamente
     if (settings && settings.id) {
       const { error } = await supabase
         .from('site_settings')
@@ -84,6 +98,7 @@ export default function Styling() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* ... (outros campos do formulário - sem alterações) ... */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="flex items-center gap-2 mb-4">
             <Palette className="h-5 w-5 text-blue-600" />
@@ -97,7 +112,7 @@ export default function Styling() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">URL do Logo</label>
               <input type="url" value={formData.logo_url} onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="https://exemplo.com/logo.png" />
-              {formData.logo_url && <div className="mt-2"><img src={formData.logo_url} alt="Preview do logo" className="h-16 w-16 object-contain border border-gray-200 rounded" onError={(e ) => { (e.target as HTMLImageElement).style.display = 'none'; }} /></div>}
+              {formData.logo_url && <div className="mt-2"><img src={formData.logo_url} alt="Preview do logo" className="h-16 w-16 object-contain border border-gray-200 rounded" onError={(e  ) => { (e.target as HTMLImageElement).style.display = 'none'; }} /></div>}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Mensagem de Boas-vindas</label>
@@ -108,13 +123,34 @@ export default function Styling() {
 
         <div className="bg-white rounded-lg shadow-md p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Configurações de Pagamento</h3>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Chave PIX</label>
-            <input type="text" value={formData.pix_key} onChange={(e) => setFormData({ ...formData, pix_key: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="seu-email@exemplo.com ou chave aleatória" required />
-            <p className="mt-1 text-xs text-gray-500">Informe sua chave PIX (email, telefone, CPF/CNPJ ou chave aleatória)</p>
+          <div className="space-y-4"> {/* Adicionado para espaçamento */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Chave PIX</label>
+              <input type="text" value={formData.pix_key} onChange={(e) => setFormData({ ...formData, pix_key: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="seu-email@exemplo.com ou chave aleatória" required />
+              <p className="mt-1 text-xs text-gray-500">Informe sua chave PIX (email, telefone, CPF/CNPJ ou chave aleatória)</p>
+            </div>
+
+            {/* --- 4. MODIFICAÇÃO: Adicionar o seletor para Ativar/Desativar o Pix --- */}
+            <div>
+              <label htmlFor="ativar_pix" className="block text-sm font-medium text-gray-700 mb-1">Pagamento via Pix</label>
+              <select
+                id="ativar_pix"
+                name="ativar_pix"
+                value={formData.ativar_pix ? '1' : '0'}
+                onChange={handleAtivarPixChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="1">Ativado</option>
+                <option value="0">Desativado</option>
+              </select>
+              <p className="mt-1 text-xs text-gray-500">Se desativado, o QR Code do Pix não aparecerá para o cliente.</p>
+            </div>
+            {/* --- FIM DA MODIFICAÇÃO --- */}
+
           </div>
         </div>
 
+        {/* ... (resto do formulário - sem alterações) ... */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Cores do Site</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

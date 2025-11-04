@@ -14,6 +14,7 @@ export interface SiteSettings {
   primary_color: string;
   secondary_color: string;
   updated_at: string;
+  ativar_pix: boolean;
 }
 
 export interface Product {

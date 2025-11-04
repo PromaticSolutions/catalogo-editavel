@@ -1,7 +1,9 @@
+// src/components/CartModal.tsx - VERSÃO MODIFICADA POR MANUS
+
 import { X, Trash2, Plus } from 'lucide-react';
 import { useCart } from '../lib/useCart';
 import { useState } from 'react';
-import { supabase, SiteSettings, Product } from '../lib/supabase'; // Importa Product
+import { supabase, SiteSettings, Product } from '../lib/supabase';
 import { toast } from 'react-toastify';
 import QRCode from 'qrcode';
 
@@ -10,7 +12,6 @@ interface CartModalProps {
   onClose: () => void;
 }
 
-// NOVO TIPO: Para guardar os dados do pedido finalizado
 interface FinalizedOrder {
   items: (Product & { quantity: number })[];
   total: number;
@@ -23,23 +24,14 @@ export default function CartModal({ settings, onClose }: CartModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderCreated, setOrderCreated] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState('');
-  
-  // NOVO ESTADO: para armazenar os detalhes do pedido após a finalização
   const [finalizedOrder, setFinalizedOrder] = useState<FinalizedOrder | null>(null);
 
-  const handleFinalizeOrder = async () => {
-    if (!settings.pix_key) {
-      toast.error('A chave PIX não está configurada pelo administrador.');
-      return;
-    }
-    setIsSubmitting(true);
+  // --- 1. MODIFICAÇÃO: Verificar se o PIX está ativado pelas configurações ---
+  const isPixActive = settings.ativar_pix === true;
 
-    // CAPTURA OS DADOS ANTES DE QUALQUER COISA
-    const orderData: FinalizedOrder = { items: cart, total: totalPrice };
-    setFinalizedOrder(orderData);
-
+  // Função que registra a venda no Supabase (reutilizável)
+  const registerSaleInSupabase = async (orderData: FinalizedOrder) => {
     const saleDescription = orderData.items.map(item => `${item.quantity}x ${item.name}`).join(', ');
-
     const { data: newSale, error } = await supabase
       .from('sales')
       .insert({
@@ -48,8 +40,8 @@ export default function CartModal({ settings, onClose }: CartModalProps) {
         total_amount: orderData.total,
         customer_name: customerName || null,
         customer_phone: customerPhone || null,
-        status: 'pending',
-        product_id: null, 
+        status: isPixActive ? 'pending' : 'awaiting_confirmation', // Status diferente se não usar PIX
+        product_id: null,
         unit_price: 0,
       })
       .select()
@@ -58,34 +50,63 @@ export default function CartModal({ settings, onClose }: CartModalProps) {
     if (error) {
       console.error("Erro ao criar venda no Supabase:", error);
       toast.error('Erro ao criar seu pedido. Tente novamente.');
-      setIsSubmitting(false);
-      return;
+      return null;
     }
+    return newSale;
+  };
+
+  // --- 2. MODIFICAÇÃO: Lógica de finalização separada ---
+  const handleFinalizeOrder = async () => {
+    setIsSubmitting(true);
+    const orderData: FinalizedOrder = { items: cart, total: totalPrice };
+    setFinalizedOrder(orderData);
+
+    const newSale = await registerSaleInSupabase(orderData);
 
     if (newSale) {
-      try {
-        const qrCodeDataUrl = await QRCode.toDataURL(settings.pix_key, { width: 280, margin: 2 });
-        setQrCodeUrl(qrCodeDataUrl);
-        setOrderCreated(true);
-        toast.success("Pedido criado! Agora realize o pagamento.");
-        clearCart(); // Limpa o carrinho SÓ DEPOIS que tudo deu certo
-      } catch (qrError) {
-        console.error('Erro ao gerar QR Code:', qrError);
-        toast.error('Pedido criado, mas houve um erro ao gerar o QR Code.');
+      // Se o PIX estiver ATIVO, gera o QR Code
+      if (isPixActive) {
+        if (!settings.pix_key) {
+          toast.error('A chave PIX não está configurada pelo administrador.');
+          setIsSubmitting(false);
+          return;
+        }
+        try {
+          const qrCodeDataUrl = await QRCode.toDataURL(settings.pix_key, { width: 280, margin: 2 });
+          setQrCodeUrl(qrCodeDataUrl);
+          setOrderCreated(true); // Mostra a tela do PIX
+          toast.success("Pedido criado! Agora realize o pagamento.");
+          clearCart();
+        } catch (qrError) {
+          console.error('Erro ao gerar QR Code:', qrError);
+          toast.error('Pedido criado, mas houve um erro ao gerar o QR Code.');
+        }
+      } else {
+        // Se o PIX estiver DESATIVADO, redireciona para o WhatsApp
+        toast.success("Pedido registrado! Enviando para o WhatsApp...");
+        clearCart();
+        // A mensagem é construída e o link é aberto
+        const whatsappMessage = encodeURIComponent(`Olá! Gostaria de fazer o seguinte pedido:
+${orderData.items.map(item => `${item.quantity}x ${item.name}`).join('\n')}
+
+*Total: R$ ${orderData.total.toFixed(2)}*`);
+        const whatsappLink = `https://wa.me/5511995442526?text=${whatsappMessage}`; // Use o número do admin aqui
+        window.open(whatsappLink, '_blank' );
+        onClose(); // Fecha o modal
       }
     }
     
     setIsSubmitting(false);
   };
   
-  // MENSAGEM DO WHATSAPP: Agora usa os dados do 'finalizedOrder'
-  const whatsappMessage = finalizedOrder 
+  // Mensagem do WhatsApp para quem paga com PIX e precisa enviar o comprovante
+  const whatsappProofMessage = finalizedOrder 
     ? encodeURIComponent(`Olá! Acabei de comprar os seguintes itens:
-    ${finalizedOrder.items.map(item => `${item.quantity}x ${item.name}`).join(', ')} (Total: R$ ${finalizedOrder.total.toFixed(2)}). 
+${finalizedOrder.items.map(item => `${item.quantity}x ${item.name}`).join(', ')} (Total: R$ ${finalizedOrder.total.toFixed(2)}). 
     
-    Segue o comprovante de pagamento.`)
+Segue o comprovante de pagamento.`)
     : '';
-  const whatsappLink = `https://wa.me/5511995442526?text=${whatsappMessage}`;
+  const whatsappProofLink = `https://wa.me/5511995442526?text=${whatsappProofMessage}`;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -105,7 +126,7 @@ export default function CartModal({ settings, onClose }: CartModalProps) {
             <div className="flex-grow overflow-y-auto p-6 space-y-4">
               {cart.length === 0 ? (
                 <p className="text-gray-500 text-center py-8">Seu carrinho está vazio.</p>
-               ) : (
+                ) : (
                 cart.map(item => (
                   <div key={item.id} className="flex items-center gap-4">
                     <img src={item.image_url} alt={item.name} className="h-16 w-16 rounded object-cover" />
@@ -138,18 +159,19 @@ export default function CartModal({ settings, onClose }: CartModalProps) {
                   <span className="text-gray-600 font-medium">Total:</span>
                   <span className="text-2xl font-bold" style={{ color: settings.primary_color }}>R$ {totalPrice.toFixed(2)}</span>
                 </div>
+                {/* --- 3. MODIFICAÇÃO: Botão dinâmico --- */}
                 <button onClick={handleFinalizeOrder} disabled={isSubmitting} className="w-full text-white py-3 rounded-lg font-semibold transition-colors disabled:opacity-50" style={{ backgroundColor: settings.primary_color }}>
-                  {isSubmitting ? 'Finalizando...' : 'Finalizar Compra e Gerar PIX'}
+                  {isSubmitting ? 'Finalizando...' : (isPixActive ? 'Finalizar Compra e Gerar PIX' : 'Enviar Pedido no WhatsApp')}
                 </button>
               </div>
             )}
           </>
         ) : (
+          // Esta tela só aparece se o PIX estiver ativo
           <div className="flex-grow overflow-y-auto p-6 space-y-4 text-center">
             <div className="bg-green-50 border border-green-200 rounded-lg p-3">
               <p className="text-green-800 font-medium">✓ Pedido criado! Pague o valor abaixo.</p>
             </div>
-            {/* VALOR A PAGAR: Agora usa os dados do 'finalizedOrder' */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-sm text-blue-800">
                 <strong>Valor total a pagar:</strong>
@@ -165,7 +187,7 @@ export default function CartModal({ settings, onClose }: CartModalProps) {
             )}
             <div className="pt-4">
               <p className="text-sm text-gray-600 mb-2">2. Após pagar, envie o comprovante:</p>
-              <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="w-full bg-green-500 text-white py-3 rounded-lg font-semibold hover:bg-green-600 transition-colors flex items-center justify-center gap-2">
+              <a href={whatsappProofLink} target="_blank" rel="noopener noreferrer" className="w-full bg-green-500 text-white py-3 rounded-lg font-semibold hover:bg-green-600 transition-colors flex items-center justify-center gap-2">
                 <span className="mr-2">📲</span>
                 Enviar Comprovante via WhatsApp
               </a>
