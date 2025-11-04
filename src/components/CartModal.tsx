@@ -1,4 +1,4 @@
-// src/components/CartModal.tsx - VERSÃO MODIFICADA POR MANUS
+// src/components/CartModal.tsx - VERSÃO FINAL COM ROMANEIO PROFISSIONAL
 
 import { X, Trash2, Plus } from 'lucide-react';
 import { useCart } from '../lib/useCart';
@@ -26,10 +26,29 @@ export default function CartModal({ settings, onClose }: CartModalProps) {
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [finalizedOrder, setFinalizedOrder] = useState<FinalizedOrder | null>(null);
 
-  // --- 1. MODIFICAÇÃO: Verificar se o PIX está ativado pelas configurações ---
   const isPixActive = settings.ativar_pix === true;
 
-  // Função que registra a venda no Supabase (reutilizável)
+  // --- 1. NOVA FUNÇÃO PARA GERAR O ROMANEIO PROFISSIONAL ---
+  const generateOrderSummary = (orderData: FinalizedOrder): string => {
+    const itemsSummary = orderData.items.map(item => {
+      // Formata cada item individualmente
+      return `
+*Ref:* ${item.referencia || 'N/A'}
+*Produto:* ${item.name}
+*Quantidade:* ${item.quantity}
+*Valor:* R$ ${item.price.toFixed(2)}
+--------------------`;
+    }).join(''); // Junta todos os itens formatados
+
+    // Monta a mensagem final
+    return `Olá! Segue o meu pedido:
+
+*--- RESUMO DO PEDIDO ---*${itemsSummary}
+
+*VALOR TOTAL: R$ ${orderData.total.toFixed(2)}*
+`;
+  };
+
   const registerSaleInSupabase = async (orderData: FinalizedOrder) => {
     const saleDescription = orderData.items.map(item => `${item.quantity}x ${item.name}`).join(', ');
     const { data: newSale, error } = await supabase
@@ -40,7 +59,7 @@ export default function CartModal({ settings, onClose }: CartModalProps) {
         total_amount: orderData.total,
         customer_name: customerName || null,
         customer_phone: customerPhone || null,
-        status: isPixActive ? 'pending' : 'awaiting_confirmation', // Status diferente se não usar PIX
+        status: isPixActive ? 'pending' : 'awaiting_confirmation',
         product_id: null,
         unit_price: 0,
       })
@@ -55,7 +74,6 @@ export default function CartModal({ settings, onClose }: CartModalProps) {
     return newSale;
   };
 
-  // --- 2. MODIFICAÇÃO: Lógica de finalização separada ---
   const handleFinalizeOrder = async () => {
     setIsSubmitting(true);
     const orderData: FinalizedOrder = { items: cart, total: totalPrice };
@@ -64,7 +82,6 @@ export default function CartModal({ settings, onClose }: CartModalProps) {
     const newSale = await registerSaleInSupabase(orderData);
 
     if (newSale) {
-      // Se o PIX estiver ATIVO, gera o QR Code
       if (isPixActive) {
         if (!settings.pix_key) {
           toast.error('A chave PIX não está configurada pelo administrador.');
@@ -74,7 +91,7 @@ export default function CartModal({ settings, onClose }: CartModalProps) {
         try {
           const qrCodeDataUrl = await QRCode.toDataURL(settings.pix_key, { width: 280, margin: 2 });
           setQrCodeUrl(qrCodeDataUrl);
-          setOrderCreated(true); // Mostra a tela do PIX
+          setOrderCreated(true);
           toast.success("Pedido criado! Agora realize o pagamento.");
           clearCart();
         } catch (qrError) {
@@ -82,31 +99,27 @@ export default function CartModal({ settings, onClose }: CartModalProps) {
           toast.error('Pedido criado, mas houve um erro ao gerar o QR Code.');
         }
       } else {
-        // Se o PIX estiver DESATIVADO, redireciona para o WhatsApp
         toast.success("Pedido registrado! Enviando para o WhatsApp...");
         clearCart();
-        // A mensagem é construída e o link é aberto
-        const whatsappMessage = encodeURIComponent(`Olá! Gostaria de fazer o seguinte pedido:
-${orderData.items.map(item => `${item.quantity}x ${item.name}`).join('\n')}
-
-*Total: R$ ${orderData.total.toFixed(2)}*`);
-        const whatsappLink = `https://wa.me/5511995442526?text=${whatsappMessage}`; // Use o número do admin aqui
-        window.open(whatsappLink, '_blank' );
-        onClose(); // Fecha o modal
+        
+        // --- 2. USAR A NOVA FUNÇÃO PARA GERAR A MENSAGEM DO PEDIDO ---
+        const orderSummary = generateOrderSummary(orderData);
+        const finalMessage = `${orderSummary}\nAguardo a confirmação. Obrigado!`;
+        const whatsappLink = `https://wa.me/5511995442526?text=${encodeURIComponent(finalMessage )}`;
+        
+        window.open(whatsappLink, '_blank');
+        onClose();
       }
     }
     
     setIsSubmitting(false);
   };
   
-  // Mensagem do WhatsApp para quem paga com PIX e precisa enviar o comprovante
+  // --- 3. USAR A NOVA FUNÇÃO PARA GERAR A MENSAGEM DE COMPROVANTE ---
   const whatsappProofMessage = finalizedOrder 
-    ? encodeURIComponent(`Olá! Acabei de comprar os seguintes itens:
-${finalizedOrder.items.map(item => `${item.quantity}x ${item.name}`).join(', ')} (Total: R$ ${finalizedOrder.total.toFixed(2)}). 
-    
-Segue o comprovante de pagamento.`)
+    ? `${generateOrderSummary(finalizedOrder)}\n*Segue o comprovante de pagamento.*`
     : '';
-  const whatsappProofLink = `https://wa.me/5511995442526?text=${whatsappProofMessage}`;
+  const whatsappProofLink = `https://wa.me/5511995442526?text=${encodeURIComponent(whatsappProofMessage )}`;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -159,7 +172,6 @@ Segue o comprovante de pagamento.`)
                   <span className="text-gray-600 font-medium">Total:</span>
                   <span className="text-2xl font-bold" style={{ color: settings.primary_color }}>R$ {totalPrice.toFixed(2)}</span>
                 </div>
-                {/* --- 3. MODIFICAÇÃO: Botão dinâmico --- */}
                 <button onClick={handleFinalizeOrder} disabled={isSubmitting} className="w-full text-white py-3 rounded-lg font-semibold transition-colors disabled:opacity-50" style={{ backgroundColor: settings.primary_color }}>
                   {isSubmitting ? 'Finalizando...' : (isPixActive ? 'Finalizar Compra e Gerar PIX' : 'Enviar Pedido no WhatsApp')}
                 </button>
@@ -167,7 +179,6 @@ Segue o comprovante de pagamento.`)
             )}
           </>
         ) : (
-          // Esta tela só aparece se o PIX estiver ativo
           <div className="flex-grow overflow-y-auto p-6 space-y-4 text-center">
             <div className="bg-green-50 border border-green-200 rounded-lg p-3">
               <p className="text-green-800 font-medium">✓ Pedido criado! Pague o valor abaixo.</p>
