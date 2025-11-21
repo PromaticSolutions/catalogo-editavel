@@ -14,6 +14,7 @@ export interface SiteSettings {
   primary_color: string;
   secondary_color: string;
   updated_at: string;
+  ativar_pix: boolean;
 }
 
 export interface Product {
@@ -27,6 +28,7 @@ export interface Product {
   created_at: string;
   updated_at: string;
   category_id: string | null;
+  referencia: string | null;
 }
 
 export interface Sale {
@@ -48,4 +50,14 @@ export interface AdminUser {
   username: string;
   password_hash: string;
   created_at: string;
+}
+export interface Attribute {
+  id: string;
+  name: string;
+  attribute_options: AttributeOption[]; 
+}
+
+export interface AttributeOption {
+  id: string;
+  value: string;
 }
