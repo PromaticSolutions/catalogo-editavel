@@ -5,6 +5,36 @@ import { Category } from '../../types/Category';
 import ProductModal from './ProductModal';
 import { toast } from 'react-toastify';
 
+function buildCategoryTree(categories: Category[]): CategoryWithChildren[] {
+  const map: Record<string, CategoryWithChildren> = {};
+  const tree: CategoryWithChildren[] = [];
+
+  // Inicializa o map com children vazio
+  categories.forEach(cat => {
+    map[cat.id] = { ...cat, children: [] };
+  });
+
+  // Constrói a árvore
+  categories.forEach(cat => {
+    if (cat.parent_id && map[cat.parent_id]) {
+      map[cat.parent_id].children.push(map[cat.id]);
+    } else if (!cat.parent_id) {
+      tree.push(map[cat.id]);
+    }
+  });
+
+  return tree;
+}
+
+type CategoryWithChildren = Category & { children: CategoryWithChildren[] };
+
+function renderCategoryOptions(categories: CategoryWithChildren[], prefix = ''): JSX.Element[] {
+  return categories.flatMap(cat => [
+    <option key={cat.id} value={cat.id}>{prefix + cat.name}</option>,
+    ...renderCategoryOptions(cat.children, prefix + '→ ')
+  ]);
+}
+
 export default function Products() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -19,7 +49,7 @@ export default function Products() {
   const fetchProducts = async () => {
     let query = supabase
       .from('products')
-      .select('*, categories(name)', { count: 'exact' })
+      .select('*, categories(name, parent_id)', { count: 'exact' })
       .order('name', { ascending: true });
 
     if (searchTerm) query = query.ilike('name', `%${searchTerm}%`);
@@ -39,9 +69,11 @@ export default function Products() {
   };
 
   const fetchCategories = async () => {
-    const { data, error } = await supabase.from('categories').select('*');
+    const { data, error } = await supabase.from('categories').select('*').order('name');
     if (error) toast.error('Erro ao buscar categorias: ' + error.message);
-    else setCategories(data as Category[]);
+    else if (data) {
+      setCategories(data as Category[]);
+    }
   };
 
   useEffect(() => {
@@ -60,7 +92,6 @@ export default function Products() {
     fetchProducts();
   };
 
-  // A CORREÇÃO ESTÁ AQUI: productId agora é 'string'
   const handleDelete = async (productId: string) => {
     if (!window.confirm('Tem certeza que deseja excluir este produto?')) return;
     const { error } = await supabase.from('products').delete().eq('id', productId);
@@ -72,6 +103,7 @@ export default function Products() {
   };
 
   const totalPages = Math.ceil(totalProducts / productsPerPage);
+  const categoryTree = buildCategoryTree(categories);
 
   return (
     <div className="p-6">
@@ -102,9 +134,7 @@ export default function Products() {
           className="border rounded-lg px-4 py-2"
         >
           <option value="">Todas as Categorias</option>
-          {categories.map((cat) => (
-            <option key={cat.id} value={cat.id}>{cat.name}</option>
-          ))}
+          {renderCategoryOptions(categoryTree)}
         </select>
       </div>
 
@@ -124,21 +154,25 @@ export default function Products() {
             {products.map((product) => (
               <tr key={product.id}>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <img src={product.image_url} alt={product.name} className="w-16 h-16 object-cover rounded" />
+                  <img src={product.image_url} alt={product.name} className="w-16 h-16 object-cover rounded-lg" />
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{product.name}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-gray-500">{product.categories?.name || 'N/A'}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-gray-500">R$ {product.price.toFixed(2)}</td>
-                <td className="px-6 py-4 whitespace-nowrap font-medium">
-                  {product.stock_quantity > 0 ? (
-                    <span className="text-green-600">{product.stock_quantity}</span>
-                  ) : (
-                    <span className="text-red-600">Esgotado</span>
-                  )}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button onClick={() => handleOpenModal(product)} className="text-indigo-600 hover:text-indigo-900 mr-4">Editar</button>
-                  <button onClick={() => handleDelete(product.id)} className="text-red-600 hover:text-red-900">Excluir</button>
+                <td className="px-6 py-4 whitespace-nowrap">{product.name}</td>
+                <td className="px-6 py-4 whitespace-nowrap">{product.categories?.name || '-'}</td>
+                <td className="px-6 py-4 whitespace-nowrap">R$ {product.price.toFixed(2)}</td>
+                <td className="px-6 py-4 whitespace-nowrap">{product.stock_quantity}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-right space-x-2">
+                  <button
+                    onClick={() => handleOpenModal(product)}
+                    className="text-blue-600 hover:text-blue-800"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    onClick={() => handleDelete(product.id)}
+                    className="text-red-600 hover:text-red-800"
+                  >
+                    Excluir
+                  </button>
                 </td>
               </tr>
             ))}
@@ -146,25 +180,25 @@ export default function Products() {
         </table>
       </div>
 
-      <div className="flex items-center justify-between mt-4">
-        <span className="text-sm text-gray-700">
-          Página {page} de {totalPages}
-        </span>
-        <div className="flex items-center gap-2">
-          <button onClick={() => setPage(1)} disabled={page === 1} className="p-2 border rounded-lg disabled:opacity-50 text-lg">«</button>
-          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-2 border rounded-lg disabled:opacity-50 text-lg">‹</button>
-          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-2 border rounded-lg disabled:opacity-50 text-lg">›</button>
-          <button onClick={() => setPage(totalPages)} disabled={page === totalPages} className="p-2 border rounded-lg disabled:opacity-50 text-lg">»</button>
-        </div>
+      <div className="flex justify-between mt-4">
+        <button
+          onClick={() => setPage(p => Math.max(p - 1, 1))}
+          disabled={page === 1}
+          className="px-4 py-2 bg-gray-200 rounded-lg disabled:opacity-50"
+        >
+          Anterior
+        </button>
+        <span>Página {page} de {totalPages}</span>
+        <button
+          onClick={() => setPage(p => Math.min(p + 1, totalPages))}
+          disabled={page === totalPages}
+          className="px-4 py-2 bg-gray-200 rounded-lg disabled:opacity-50"
+        >
+          Próxima
+        </button>
       </div>
 
-      {isModalOpen && (
-        <ProductModal
-          product={selectedProduct}
-          categories={categories}
-          onClose={handleCloseModal}
-        />
-      )}
+      {isModalOpen && <ProductModal product={selectedProduct} categories={categories} onClose={handleCloseModal} />}
     </div>
   );
 }

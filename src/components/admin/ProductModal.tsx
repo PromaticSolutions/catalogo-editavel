@@ -10,12 +10,16 @@ interface ProductModalProps {
   onClose: () => void;
 }
 
+interface CategoryWithChildren extends Category {
+  children: CategoryWithChildren[];
+}
+
 export default function ProductModal({ product, categories, onClose }: ProductModalProps) {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     price: '',
-    categoryId: '', // <-- JÁ É STRING, PERFEITO
+    categoryId: '',
     imageUrl: '',
     stockQuantity: '0',
   });
@@ -27,7 +31,7 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
         name: product.name || '',
         description: product.description || '',
         price: String(product.price || ''),
-        categoryId: product.category_id || '', // <-- JÁ É STRING, PERFEITO
+        categoryId: product.category_id || '',
         imageUrl: product.image_url || '',
         stockQuantity: String(product.stock_quantity || '0'),
       });
@@ -58,12 +62,11 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
     
     setIsSubmitting(true);
 
-    // DADOS SÃO ENVIADOS COMO STRING ONDE NECESSÁRIO
     const productData = {
       name: formData.name,
       description: formData.description,
       price: parseFloat(formData.price),
-      category_id: formData.categoryId, // <-- ENVIADO COMO STRING (UUID)
+      category_id: formData.categoryId,
       image_url: formData.imageUrl,
       stock_quantity: parseInt(formData.stockQuantity, 10) || 0,
     };
@@ -74,10 +77,9 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
         const { error: updateError } = await supabase
           .from('products')
           .update(productData)
-          .eq('id', product.id); // <-- AGORA COMPARA UUID COM UUID
+          .eq('id', product.id);
         error = updateError;
       } else {
-        // NÃO ENVIAMOS O ID, O SUPABASE GERA O UUID
         const { error: insertError } = await supabase
           .from('products')
           .insert([productData]);
@@ -85,26 +87,45 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
       }
 
       if (error) {
-        console.error('Erro Supabase:', error);
         toast.error('Erro ao salvar produto: ' + error.message);
       } else {
         toast.success(`Produto ${product ? 'atualizado' : 'criado'} com sucesso!`);
         onClose();
       }
     } catch (err: any) {
-      console.error('Erro inesperado:', err);
       toast.error('Erro inesperado ao salvar o produto.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const buildCategoryTree = (cats: Category[]): CategoryWithChildren[] => {
+    const map: Record<string, CategoryWithChildren> = {};
+    const tree: CategoryWithChildren[] = [];
+    cats.forEach(cat => map[cat.id] = { ...cat, children: [] });
+    cats.forEach(cat => {
+      if (cat.parent_id && map[cat.parent_id]) map[cat.parent_id].children.push(map[cat.id]);
+      else tree.push(map[cat.id]);
+    });
+    return tree;
+  };
+
+  const flattenCategories = (cats: CategoryWithChildren[], level = 0): { id: string; name: string; level: number }[] => {
+    let result: { id: string; name: string; level: number }[] = [];
+    cats.forEach(cat => {
+      result.push({ id: cat.id, name: cat.name, level });
+      if (cat.children.length > 0) result = result.concat(flattenCategories(cat.children, level + 1));
+    });
+    return result;
+  };
+
+  const flatCategories = flattenCategories(buildCategoryTree(categories));
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-2xl">
         <h2 className="text-2xl font-bold mb-6">{product ? 'Editar Produto' : 'Adicionar Novo Produto'}</h2>
         <form onSubmit={handleSubmit}>
-          {/* O formulário não precisa de NENHUMA mudança visual */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <div className="mb-4">
@@ -119,7 +140,11 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
                 <label className="block text-gray-700 mb-2">Categoria</label>
                 <select name="categoryId" value={formData.categoryId} onChange={handleChange} className="w-full px-3 py-2 border rounded-lg" required>
                   <option value="" disabled>Selecione uma categoria</option>
-                  {categories.map((cat) => (<option key={cat.id} value={cat.id}>{cat.name}</option>))}
+                  {flatCategories.map(cat => (
+                    <option key={cat.id} value={cat.id}>
+                      {'→ '.repeat(cat.level) + cat.name}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="mb-4">
@@ -137,7 +162,7 @@ export default function ProductModal({ product, categories, onClose }: ProductMo
                   <p className="text-sm text-gray-600 mb-2">Pré-visualização:</p>
                   <img src={formData.imageUrl} alt="Pré-visualização" className="w-full h-40 object-contain rounded-lg border" />
                 </div>
-                )}
+              )}
             </div>
           </div>
           <div className="mt-4">
